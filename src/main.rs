@@ -10,6 +10,7 @@ mod coda;
 mod options;
 mod errors;
 
+use coda::Coda;
 use options::Options;
 use errors::*;
 
@@ -18,7 +19,7 @@ fn run() -> Result<()> {
         .map_err(|c| exit(c))
         .unwrap();
 
-    let coda = coda::parse_coda(&options.coda_filename).chain_err(|| "Could not parse coda")?;
+    let coda = Coda::parse_coda(&options.coda_filename).chain_err(|| "Could not parse coda")?;
 
     println!("creation_date=[{}]", coda.header.creation_date);
     println!("name_addressee=[{}]", coda.header.name_addressee);

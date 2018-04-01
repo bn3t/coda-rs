@@ -37,9 +37,65 @@ pub struct Header {
     pub version: u8,
 }
 
+impl Header {
+    pub fn parse_header(line: &str) -> Result<Header> {
+        Ok(Header {
+            creation_date: parse_field(line, 5..11, parse_date)
+                .chain_err(|| "Could not parse creation_date")?,
+            bank_id: parse_field(line, 11..14, parse_str).chain_err(|| "Could not parse bank_id")?,
+            duplicate: parse_field(line, 16..17, parse_duplicate)
+                .chain_err(|| "Could not parse duplicate")?,
+            file_reference: parse_field(line, 24..34, parse_str)
+                .chain_err(|| "Could not parse file_reference")?,
+            name_addressee: parse_field(line, 34..60, parse_str)
+                .chain_err(|| "Could not parse name_addressee")?,
+            bic: parse_field(line, 60..71, parse_str).chain_err(|| "Could not parse bic")?,
+            company_id: parse_field(line, 71..82, parse_str)
+                .chain_err(|| "Could not parse company_id")?,
+            reference: parse_field(line, 88..104, parse_str)
+                .chain_err(|| "Could not parse reference")?,
+            related_reference: parse_field(line, 105..120, parse_str)
+                .chain_err(|| "Could not parse related_reference")?,
+            version: parse_field(line, 127..128, parse_u8).chain_err(|| "Could not parse version")?,
+        })
+    }
+}
+
 #[allow(dead_code)]
 pub struct Coda {
     pub header: Header,
+}
+
+impl Coda {
+    pub fn parse_coda(coda_filename: &str) -> Result<Coda> {
+        println!("Parsing file: {}", coda_filename);
+        // This operation will fail
+        let f =
+            File::open(coda_filename).chain_err(|| format!("Unable to open {}", coda_filename))?;
+
+        let reader = BufReader::new(f);
+        let mut header: Option<Header> = None;
+        for line in reader.lines() {
+            let l = line.unwrap();
+            let t: u8 = match l.get(0..1) {
+                Some("0") => 0,
+                _ => 255,
+            };
+            match t {
+            0 => {
+                header = Some(Header::parse_header(&l).chain_err(||->Error  {"Could not parse header".into()})?);
+                //let header  = Header {};
+                //coda.statements.push(statement);
+            },
+            _ => {}
+            // _ => return Err("Unknown type".into()),
+        }
+        }
+        if let Some(header) = header {
+            return Ok(Coda { header: header });
+        }
+        Err("Could not parse code".into())
+    }
 }
 
 fn parse_date(s: &str) -> Result<NaiveDate> {
@@ -73,61 +129,11 @@ fn parse_field<T>(line: &str, range: Range<usize>, convert: fn(s: &str) -> Resul
     }
 }
 
-fn parse_header(line: &str) -> Result<Header> {
-    Ok(Header {
-        creation_date: parse_field(line, 5..11, parse_date)
-            .chain_err(|| "Could not parse creation_date")?,
-        bank_id: parse_field(line, 11..14, parse_str).chain_err(|| "Could not parse bank_id")?,
-        duplicate: parse_field(line, 16..17, parse_duplicate)
-            .chain_err(|| "Could not parse duplicate")?,
-        file_reference: parse_field(line, 24..34, parse_str)
-            .chain_err(|| "Could not parse file_reference")?,
-        name_addressee: parse_field(line, 34..60, parse_str)
-            .chain_err(|| "Could not parse name_addressee")?,
-        bic: parse_field(line, 60..71, parse_str).chain_err(|| "Could not parse bic")?,
-        company_id: parse_field(line, 71..82, parse_str)
-            .chain_err(|| "Could not parse company_id")?,
-        reference: parse_field(line, 88..104, parse_str).chain_err(|| "Could not parse reference")?,
-        related_reference: parse_field(line, 105..120, parse_str)
-            .chain_err(|| "Could not parse related_reference")?,
-        version: parse_field(line, 127..128, parse_u8).chain_err(|| "Could not parse version")?,
-    })
-}
-
-pub fn parse_coda(coda_filename: &str) -> Result<Coda> {
-    println!("Parsing file: {}", coda_filename);
-    // This operation will fail
-    let f = File::open(coda_filename).chain_err(|| format!("Unable to open {}", coda_filename))?;
-
-    let reader = BufReader::new(f);
-    let mut header: Option<Header> = None;
-    for line in reader.lines() {
-        let l = line.unwrap();
-        let t: u8 = match l.get(0..1) {
-            Some("0") => 0,
-            _ => 255,
-        };
-        match t {
-            0 => {
-                header = Some(parse_header(&l).chain_err(||->Error  {"Could not parse header".into()})?);
-                //let header  = Header {};
-                //coda.statements.push(statement);
-            },
-            _ => {}
-            // _ => return Err("Unknown type".into()),
-        }
-    }
-    if let Some(header) = header {
-        return Ok(Coda { header: header });
-    }
-    Err("Could not parse code".into())
-}
-
 #[cfg(test)]
 mod test_parse_header {
     use chrono::NaiveDate;
 
-    use super::parse_header;
+    use super::Header;
     use super::parse_field;
     use super::parse_date;
     use super::parse_str;
@@ -137,7 +143,7 @@ mod test_parse_header {
     #[test]
     fn parse_header_valid() {
         let line_header = "0000029031872505        00099449  Testgebruiker21           KREDBEBB   00630366277 00000                                       2";
-        let actual = parse_header(line_header);
+        let actual = Header::parse_header(line_header);
 
         assert_eq!(actual.is_ok(), true, "Returned header should be ok");
         let actual = actual.unwrap();
