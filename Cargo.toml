@@ -1,0 +1,13 @@
+[package]
+name = "coda-rs"
+version = "0.1.0"
+authors = ["Bernard Niset <bernard.niset@gmail.com>"]
+build = "build.rs"
+
+[dependencies]
+argparse = "0.2.1"
+error-chain = "0.10"
+chrono = "0.4.1"
+
+[build-dependencies]
+chrono = "0.4.1"
