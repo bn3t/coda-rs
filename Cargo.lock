@@ -46,7 +46,7 @@ dependencies = [
 
 [[package]]
 name = "coda-rs"
-version = "0.1.0"
+version = "0.1.1-pre"
 dependencies = [
  "argparse 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
