@@ -6,22 +6,77 @@ use std::io::{BufRead, BufReader};
 use chrono::NaiveDate;
 
 use errors::*;
-use utils::{parse_date, parse_duplicate, parse_field, parse_str, parse_u8};
+use utils::{parse_date, parse_duplicate, parse_field, parse_str, parse_u64, parse_u8};
 
-/*
-HEADER = {
-    'creation_date': (slice(5, 11), _date),
-    'bank_id': (slice(11, 14), int),
-    'duplicate': (slice(16, 17), lambda c: c == 'D'),
-    'file_reference': (slice(24, 34), _string),
-    'address': (slice(34, 60), _string),
-    'bic': (slice(60, 71), _string),
-    'company_id': (slice(71, 82), str),
-    'reference': (slice(88, 104), _string),
-    'related_reference': (slice(105, 120), _string),
-    'version': (slice(127, 128), int),
+#[derive(PartialEq, Debug)]
+pub enum AccountStructure {
+    BelgianAccountNumber,
+    ForeignAccountNumber,
+    IBANBelgianAccountNumber,
+    IBANForeignAccountNumber,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum Sign {
+    Credit,
+    Debit,
+}
+
+#[allow(dead_code)]
+pub struct OldBalance {
+    pub account_structure: AccountStructure, // ': (slice(1, 2), str),
+    pub old_sequence: String,                // ': (slice(2, 5), str),
+    pub account_currency: String,            // ': (slice(5, 42), str),
+    pub old_balance_sign: Sign,
+    pub old_balance: u64,            // ': (slice(43, 58), _amount),
+    pub old_balance_date: NaiveDate, // ': (slice(58, 64), _date),
+    pub account_holder_name: String, // ': (slice(64, 90), _string),
+    pub account_description: String, // ': (slice(90, 125), _string),
+    pub coda_sequence: String,       // ': (slice(125, 128), str),
+}
+
+impl OldBalance {
+    fn parse_accountstructure(s: &str) -> Result<AccountStructure> {
+        match s {
+            "0" => Ok(AccountStructure::BelgianAccountNumber),
+            "1" => Ok(AccountStructure::ForeignAccountNumber),
+            "2" => Ok(AccountStructure::IBANBelgianAccountNumber),
+            "3" => Ok(AccountStructure::IBANForeignAccountNumber),
+            _ => Err(format!("Invalid AccountStructure value [{}]", s).into()),
+        }
     }
-*/
+
+    fn parse_sign(s: &str) -> Result<Sign> {
+        match s {
+            "0" => Ok(Sign::Credit),
+            "1" => Ok(Sign::Debit),
+            _ => Err(format!("Invalid Sign value [{}]", s).into()),
+        }
+    }
+
+    pub fn parse(line: &str) -> Result<OldBalance> {
+        Ok(OldBalance {
+            account_structure: parse_field(line, 1..2, OldBalance::parse_accountstructure)
+                .chain_err(|| "Could not parse account_structure")?,
+            old_sequence: parse_field(line, 2..5, parse_str)
+                .chain_err(|| "Could not parse old_sequence")?,
+            account_currency: parse_field(line, 5..42, parse_str)
+                .chain_err(|| "Could not parse account_currency")?,
+            old_balance_sign: parse_field(line, 42..43, OldBalance::parse_sign)
+                .chain_err(|| "Could not parse old_balance_sign")?,
+            old_balance: parse_field(line, 43..58, parse_u64)
+                .chain_err(|| "Could not parse old_balance")?,
+            old_balance_date: parse_field(line, 58..64, parse_date)
+                .chain_err(|| "Could not parse old_balance_date")?,
+            account_holder_name: parse_field(line, 64..90, parse_str)
+                .chain_err(|| "Could not parse account_holder_name")?,
+            account_description: parse_field(line, 90..125, parse_str)
+                .chain_err(|| "Could not parse account_description")?,
+            coda_sequence: parse_field(line, 125..128, parse_str)
+                .chain_err(|| "Could not parse coda_sequence")?,
+        })
+    }
+}
 
 #[allow(dead_code)]
 pub struct Header {
@@ -64,6 +119,7 @@ impl Header {
 #[allow(dead_code)]
 pub struct Coda {
     pub header: Header,
+    pub old_balance: OldBalance,
 }
 
 impl Coda {
@@ -75,10 +131,12 @@ impl Coda {
 
         let reader = BufReader::new(f);
         let mut header: Option<Header> = None;
+        let mut old_balance: Option<OldBalance> = None;
         for line in reader.lines() {
             let l = line.unwrap();
             let t: u8 = match l.get(0..1) {
                 Some("0") => 0,
+                Some("1") => 1,
                 _ => 255,
             };
             match t {
@@ -87,12 +145,20 @@ impl Coda {
                 //let header  = Header {};
                 //coda.statements.push(statement);
             },
+            1 => {
+                old_balance = Some(OldBalance::parse(&l).chain_err(||->Error  {"Could not parse oldbalance".into()})?)
+            }
             _ => {}
             // _ => return Err("Unknown type".into()),
         }
         }
         if let Some(header) = header {
-            return Ok(Coda { header: header });
+            if let Some(old_balance) = old_balance {
+                return Ok(Coda {
+                    header: header,
+                    old_balance: old_balance,
+                });
+            }
         }
         Err("Could not parse code".into())
     }
@@ -150,5 +216,119 @@ mod test_parse_header {
             "related_reference should be '               '"
         );
         assert_eq!(actual.version, 2, "version should be '2'");
+    }
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod test_parse_oldbalance {
+    use chrono::NaiveDate;
+
+    use super::OldBalance;
+    use super::AccountStructure;
+    use super::Sign;
+
+    #[test]
+    fn parse_oldbalance_valid() {
+        let line = "10001435000000080 EUR0BE                  0000000000000000061206Testgebruiker21           KBC-Bedrijfsrekening               001";
+
+        let actual = OldBalance::parse(line);
+
+        assert_eq!(actual.is_ok(), true, "OldBalance shoud be ok");
+        let actual = actual.unwrap();
+        assert_eq!(actual.old_sequence, "001", "old_sequence should be '001'");
+        assert_eq!(
+            actual.account_structure,
+            AccountStructure::BelgianAccountNumber,
+            "account_structure should be BelgianAccountNumber"
+        );
+        assert_eq!(
+            actual.account_currency,
+            "435000000080 EUR0BE                  ",
+            "account_currency should be '435000000080 EUR0BE                  '"
+        );
+        assert_eq!(
+            actual.old_balance_sign,
+            Sign::Credit,
+            "old_balance_sign should be 'Credit'"
+        );
+        assert_eq!(actual.old_balance, 0, "old_balance should be ''");
+        assert_eq!(
+            actual.old_balance_date,
+            NaiveDate::from_ymd(2006, 12, 06),
+            "creation_date should be 06/12/2006"
+        );
+        assert_eq!(
+            actual.account_holder_name,
+            "Testgebruiker21           ",
+            "account_currency should be 'Testgebruiker21           '"
+        );
+        assert_eq!(
+            actual.account_description,
+            "KBC-Bedrijfsrekening               ",
+            "account_currency should be 'KBC-Bedrijfsrekening               '"
+        );
+        assert_eq!(
+            actual.coda_sequence,
+            "001",
+            "account_currency should be '001'"
+        );
+    }
+
+    #[test]
+    fn parse_accountstructure_valid_BelgianAccountNumber() {
+        let actual = OldBalance::parse_accountstructure("0");
+        assert_eq!(actual.is_ok(), true, "'0' should be ok");
+        assert_eq!(
+            actual.unwrap(),
+            AccountStructure::BelgianAccountNumber,
+            "'0' should be BelgianAccountNumber"
+        );
+    }
+
+    #[test]
+    fn parse_accountstructure_valid_ForeignAccountNumber() {
+        let actual = OldBalance::parse_accountstructure("1");
+        assert_eq!(actual.is_ok(), true, "'1' should be ok");
+        assert_eq!(
+            actual.unwrap(),
+            AccountStructure::ForeignAccountNumber,
+            "'0' should be ForeignAccountNumber"
+        );
+    }
+
+    #[test]
+    fn parse_accountstructure_valid_IBANBelgianAccountNumber() {
+        let actual = OldBalance::parse_accountstructure("2");
+        assert_eq!(actual.is_ok(), true, "'2' should be ok");
+        assert_eq!(
+            actual.unwrap(),
+            AccountStructure::IBANBelgianAccountNumber,
+            "'0' should be IBANBelgianAccountNumber"
+        );
+    }
+
+    #[test]
+    fn parse_accountstructure_valid_IBANForeignAccountNumber() {
+        let actual = OldBalance::parse_accountstructure("3");
+        assert_eq!(actual.is_ok(), true, "'3' should be ok");
+        assert_eq!(
+            actual.unwrap(),
+            AccountStructure::IBANForeignAccountNumber,
+            "'0' should be IBANForeignAccountNumber"
+        );
+    }
+
+    #[test]
+    fn parse_accountstructure_valid_invalid() {
+        let actual = OldBalance::parse_accountstructure("4");
+        assert_eq!(actual.is_ok(), false, "'4' should not be ok");
+    }
+
+    #[test]
+    fn parse_sign_valid_Credit() {
+        let actual = OldBalance::parse_sign("0");
+        assert_eq!(actual.is_ok(), true, "'0' should be ok");
+        assert_eq!(actual.unwrap(), Sign::Credit, "'0' should be Credit");
     }
 }

@@ -20,6 +20,10 @@ pub fn parse_u8(s: &str) -> Result<u8> {
     Ok(s.parse::<u8>().chain_err(|| "Could not parse u8")?)
 }
 
+pub fn parse_u64(s: &str) -> Result<u64> {
+    Ok(s.parse::<u64>().chain_err(|| "Could not parse u64")?)
+}
+
 pub fn parse_duplicate(s: &str) -> Result<bool> {
     match s {
         "D" => Ok(true),
@@ -49,6 +53,7 @@ mod test_parse_utils {
     use super::parse_str;
     use super::parse_duplicate;
     use super::parse_u8;
+    use super::parse_u64;
 
     #[test]
     fn parse_date_valid() {
@@ -109,7 +114,26 @@ mod test_parse_utils {
     fn parse_u8_invalid() {
         let actual = parse_u8("200000");
 
-        assert_eq!(actual.is_ok(), false, "u8 '200000' should be ok");
+        assert_eq!(actual.is_ok(), false, "u8 '200000' should not be ok");
+    }
+
+    #[test]
+    fn parse_u64_valid() {
+        let actual = parse_u64("20000");
+
+        assert_eq!(actual.is_ok(), true, "u64 '20000' should be ok");
+        assert_eq!(actual.unwrap(), 20000, "u64 '20000' should be 20000");
+    }
+
+    #[test]
+    fn parse_u64_invalid() {
+        let actual = parse_u8("200000200000200000200000200000200000");
+
+        assert_eq!(
+            actual.is_ok(),
+            false,
+            "u8 '200000200000200000200000200000200000' should not be ok"
+        );
     }
 
     #[test]

@@ -22,8 +22,12 @@ fn run() -> Result<()> {
 
     let coda = Coda::parse(&options.coda_filename).chain_err(|| "Could not parse coda")?;
 
-    println!("creation_date=[{}]", coda.header.creation_date);
-    println!("name_addressee=[{}]", coda.header.name_addressee);
+    println!("header creation_date=[{}]", coda.header.creation_date);
+    println!("header name_addressee=[{}]", coda.header.name_addressee);
+    println!(
+        "oldbalance account_currency=[{}]",
+        coda.old_balance.account_currency
+    );
 
     Ok(())
 }
