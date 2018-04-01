@@ -9,6 +9,7 @@ use std::env;
 mod coda;
 mod options;
 mod errors;
+mod utils;
 
 use coda::Coda;
 use options::Options;
@@ -19,7 +20,7 @@ fn run() -> Result<()> {
         .map_err(|c| exit(c))
         .unwrap();
 
-    let coda = Coda::parse_coda(&options.coda_filename).chain_err(|| "Could not parse coda")?;
+    let coda = Coda::parse(&options.coda_filename).chain_err(|| "Could not parse coda")?;
 
     println!("creation_date=[{}]", coda.header.creation_date);
     println!("name_addressee=[{}]", coda.header.name_addressee);
