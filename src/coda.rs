@@ -28,6 +28,28 @@ pub enum CommunicationStructure {
 }
 
 #[allow(dead_code)]
+pub struct Coda {
+    pub header: Header,
+    pub old_balance: OldBalance,
+    pub movements: Vec<Movement>,
+    pub information: Vec<Information>,
+}
+
+#[allow(dead_code)]
+pub struct Header {
+    pub creation_date: NaiveDate,
+    pub bank_id: String,
+    pub duplicate: bool,
+    pub file_reference: String,
+    pub name_addressee: String,
+    pub bic: String,
+    pub company_id: String,
+    pub reference: String,
+    pub related_reference: String,
+    pub version: u8,
+}
+
+#[allow(dead_code)]
 pub struct OldBalance {
     pub account_structure: AccountStructure, // ': (slice(1, 2), str),
     pub old_sequence: String,                // ': (slice(2, 5), str),
@@ -38,6 +60,40 @@ pub struct OldBalance {
     pub account_holder_name: String, // ': (slice(64, 90), _string),
     pub account_description: String, // ': (slice(90, 125), _string),
     pub coda_sequence: String,       // ': (slice(125, 128), str),
+}
+
+#[allow(dead_code)]
+pub struct Movement {
+    pub sequence: String,         //': (slice(2, 6), str),
+    pub detail_sequence: String,  //': (slice(6, 10), str),
+    pub bank_reference: String,   //': (slice(10, 31), str),
+    pub amount: u64,              //': (slice(31, 47), _amount),
+    pub value_date: NaiveDate,    //': (slice(47, 53), _date),
+    pub transaction_code: String, //': (slice(53, 61), str),
+    pub communication: String,    //': (slice(61, 115), str),
+    pub entry_date: NaiveDate,    //': (slice(115, 121), _date),
+    pub statement_number: String, //': (slice(121, 124), str),
+    // type 2
+    //pub _communication: String,     //': (slice(10, 63), str),
+    pub customer_reference: Option<String>, //': (slice(63, 98), _string),
+    pub counterparty_bic: Option<String>,   //': (slice(98, 109), _string),
+    pub r_transaction: Option<String>,      //': (slice(112, 113), _string),
+    pub r_reason: Option<String>,           //': (slice(113, 117), _string),
+    pub category_purpose: Option<String>,   //': (slice(117, 121), _string),
+    pub purpose: Option<String>,            //': (slice(121, 125), _string),
+    // type 3
+    pub counterparty_account: Option<String>, //': (slice(10, 47), _string),
+    pub counterparty_name: Option<String>,    //': (slice(47, 82), _string),
+}
+
+#[allow(dead_code)]
+pub struct Information {
+    pub sequence: String,         //': (slice(2, 6), str),
+    pub detail_sequence: String,  //': (slice(6, 10), str),
+    pub bank_reference: String,   //': (slice(10, 31), str),
+    pub transaction_code: String, //': (slice(31, 39), str),
+    pub communication_structure: CommunicationStructure,
+    pub communication: String, //': (slice(39, 113), str),
 }
 
 fn parse_accountstructure(s: &str) -> Result<AccountStructure> {
@@ -83,20 +139,6 @@ impl OldBalance {
     }
 }
 
-#[allow(dead_code)]
-pub struct Header {
-    pub creation_date: NaiveDate,
-    pub bank_id: String,
-    pub duplicate: bool,
-    pub file_reference: String,
-    pub name_addressee: String,
-    pub bic: String,
-    pub company_id: String,
-    pub reference: String,
-    pub related_reference: String,
-    pub version: u8,
-}
-
 impl Header {
     pub fn parse(line: &str) -> Result<Header> {
         Ok(Header {
@@ -119,31 +161,6 @@ impl Header {
             version: parse_field(line, 127..128, parse_u8).chain_err(|| "Could not parse version")?,
         })
     }
-}
-
-#[allow(dead_code)]
-pub struct Movement {
-    pub sequence: String,         //': (slice(2, 6), str),
-    pub detail_sequence: String,  //': (slice(6, 10), str),
-    pub bank_reference: String,   //': (slice(10, 31), str),
-    pub amount: u64,              //': (slice(31, 47), _amount),
-    pub value_date: NaiveDate,    //': (slice(47, 53), _date),
-    pub transaction_code: String, //': (slice(53, 61), str),
-    pub communication: String,    //': (slice(61, 115), str),
-    pub entry_date: NaiveDate,    //': (slice(115, 121), _date),
-    pub statement_number: String, //': (slice(121, 124), str),
-    // type 2
-    //pub _communication: String,     //': (slice(10, 63), str),
-    pub customer_reference: Option<String>, //': (slice(63, 98), _string),
-    pub counterparty_bic: Option<String>,   //': (slice(98, 109), _string),
-    pub r_transaction: Option<String>,      //': (slice(112, 113), _string),
-    pub r_reason: Option<String>,           //': (slice(113, 117), _string),
-    pub category_purpose: Option<String>,   //': (slice(117, 121), _string),
-    pub purpose: Option<String>,            //': (slice(121, 125), _string),
-    // type 3
-    pub counterparty_account: Option<String>, //': (slice(10, 47), _string),
-    pub counterparty_name: Option<String>,    //': (slice(47, 82), _string),
-                                              // pub _communication: String,       //': (slice(82, 125), str),
 }
 
 impl Movement {
@@ -211,39 +228,6 @@ impl Movement {
     }
 }
 
-/*
-INFORMATION_COMMON = {
-    'sequence': (slice(2, 6), str),
-    'detail_sequence': (slice(6, 10), str),
-    }
-INFORMATION = {
-    '1': {
-        'bank_reference': (slice(10, 31), str),
-        'transaction_code': (slice(31, 39), str),
-        '_communication': (slice(39, 113), str),
-        },
-    '2': {
-        '_communication': (slice(10, 115), str),
-        },
-    '3': {
-        '_communication': (slice(10, 100), str),
-        },
-    }
-
-*/
-
-#[allow(dead_code)]
-pub struct Information {
-    pub sequence: String,         //': (slice(2, 6), str),
-    pub detail_sequence: String,  //': (slice(6, 10), str),
-    pub bank_reference: String,   //': (slice(10, 31), str),
-    pub transaction_code: String, //': (slice(31, 39), str),
-    pub communication_structure: CommunicationStructure,
-    pub communication: String, //': (slice(39, 113), str),
-                               // '_communication': (slice(10, 115), str),
-                               // '_communication': (slice(10, 100), str),
-}
-
 impl Information {
     fn parse_type1(line: &str) -> Result<Information> {
         Ok(Information {
@@ -276,14 +260,6 @@ impl Information {
 
         Ok(())
     }
-}
-
-#[allow(dead_code)]
-pub struct Coda {
-    pub header: Header,
-    pub old_balance: OldBalance,
-    pub movements: Vec<Movement>,
-    pub information: Vec<Information>,
 }
 
 impl Coda {
