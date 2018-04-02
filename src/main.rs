@@ -28,6 +28,15 @@ fn run() -> Result<()> {
         "oldbalance account_currency=[{}]",
         coda.old_balance.account_currency
     );
+    println!(
+        "movement coda.movements[0].amount=[{}]",
+        coda.movements[0].amount
+    );
+    println!("movements  coda.movements.len()=[{}]", coda.movements.len());
+    println!(
+        "movement coda.movements[0].counterparty_account=[{:?}]",
+        coda.movements[0].counterparty_account
+    );
 
     Ok(())
 }

@@ -31,13 +31,13 @@ coda-rs --json FILE.CD2
 
 * Parse Header
 * Parse old balance (1)
+* Parse movement record (2.1)
+* Parse movement record (2.2)
+* Parse movement record (2.3)
 
 ### TODO
 
 * Generate JSON file
-* Parse movement record (2.1)
-* Parse movement record (2.2)
-* Parse movement record (2.3)
 * Parse information record (3.1)
 * Parse information record (3.2)
 * Parse information record (3.3)
