@@ -45,16 +45,17 @@ fn parse_communicationstructure(s: &str) -> Result<CommunicationStructure> {
     }
 }
 
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct Coda {
     pub header: Header,
     pub old_balance: OldBalance,
     pub movements: Vec<Movement>,
     pub information: Vec<Information>,
     pub free_communications: Vec<FreeCommunication>,
+    pub new_balance: NewBalance,
 }
 
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct Header {
     pub creation_date: NaiveDate,
     pub bank_id: String,
@@ -68,7 +69,7 @@ pub struct Header {
     pub version: u8,
 }
 
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct OldBalance {
     pub account_structure: AccountStructure, // ': (slice(1, 2), str),
     pub old_sequence: String,                // ': (slice(2, 5), str),
@@ -81,7 +82,7 @@ pub struct OldBalance {
     pub coda_sequence: String,       // ': (slice(125, 128), str),
 }
 
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct Movement {
     pub sequence: String,         //': (slice(2, 6), str),
     pub detail_sequence: String,  //': (slice(6, 10), str),
@@ -105,7 +106,7 @@ pub struct Movement {
     pub counterparty_name: Option<String>,    //': (slice(47, 82), _string),
 }
 
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct Information {
     pub sequence: String,         //': (slice(2, 6), str),
     pub detail_sequence: String,  //': (slice(6, 10), str),
@@ -115,19 +116,20 @@ pub struct Information {
     pub communication: String, //': (slice(39, 113), str),
 }
 
-/*
-FREE_COMMUNICATION = {
-    'sequence': (slice(2, 6), str),
-    'detail_sequence': (slice(6, 10), str),
-    'text': (slice(32, 112), _string),
-    }
-*/
-
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct FreeCommunication {
     pub sequence: String,        //': (slice(2, 6), str),
     pub detail_sequence: String, //': (slice(6, 10), str),
     pub text: String,            //': (slice(32, 112), str),
+}
+
+#[derive(Debug)]
+pub struct NewBalance {
+    pub new_sequence: String,     //': (slice(1, 4), str),
+    pub account_currency: String, //': (slice(4, 41), str),
+    pub new_balance_sign: Sign,
+    pub new_balance: u64,            //': (slice(41, 57), _amount),
+    pub new_balance_date: NaiveDate, //': (slice(57, 63), _date),
 }
 
 impl OldBalance {
@@ -297,6 +299,23 @@ impl FreeCommunication {
     }
 }
 
+impl NewBalance {
+    fn parse(line: &str) -> Result<NewBalance> {
+        Ok(NewBalance {
+            new_sequence: parse_field(line, 1..4, parse_str)
+                .chain_err(|| "Could not parse new_sequence")?,
+            account_currency: parse_field(line, 4..41, parse_str)
+                .chain_err(|| "Could not parse account_currency")?,
+            new_balance_sign: parse_field(line, 42..43, parse_sign)
+                .chain_err(|| "Could not parse old_balance_sign")?,
+            new_balance: parse_field(line, 41..57, parse_u64)
+                .chain_err(|| "Could not parse new_balance")?,
+            new_balance_date: parse_field(line, 57..63, parse_date)
+                .chain_err(|| "Could not parse new_balance_date")?,
+        })
+    }
+}
+
 impl Coda {
     pub fn parse(coda_filename: &str, encoding_label: Option<String>) -> Result<Coda> {
         println!("Parsing file: {}", coda_filename);
@@ -319,6 +338,7 @@ impl Coda {
 
         let mut header: Option<Header> = None;
         let mut old_balance: Option<OldBalance> = None;
+        let mut new_balance: Option<NewBalance> = None;
         let mut movements: Vec<Movement> = Vec::new();
         let mut informations: Vec<Information> = Vec::new();
         let mut free_communications: Vec<FreeCommunication> = Vec::new();
@@ -395,21 +415,27 @@ impl Coda {
                             .chain_err(|| "Error parsing FreeCommunication following lines")?;
                     }
                 },
+                Some("8") => {
+                    new_balance =
+                        Some(NewBalance::parse(&line).chain_err(|| "Could not parse NewBalance")?);
+                }
                 _ => {}
             };
         }
-        if let Some(header) = header {
-            if let Some(old_balance) = old_balance {
-                return Ok(Coda {
-                    header: header,
-                    old_balance: old_balance,
-                    movements: movements,
-                    information: informations,
-                    free_communications: free_communications,
-                });
-            }
+        if header.is_some() && old_balance.is_some() && old_balance.is_some()
+            && new_balance.is_some()
+        {
+            Ok(Coda {
+                header: header.unwrap(),
+                old_balance: old_balance.unwrap(),
+                movements: movements,
+                information: informations,
+                free_communications: free_communications,
+                new_balance: new_balance.unwrap(),
+            })
+        } else {
+            Err("Could not parse coda - Missing parts".into())
         }
-        Err("Could not parse code".into())
     }
 }
 
@@ -574,6 +600,46 @@ mod test_parse_oldbalance {
         let actual = parse_accountstructure("4");
         assert_eq!(actual.is_ok(), false, "'4' should not be ok");
     }
+}
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod test_parse_newbalance {
+    use chrono::NaiveDate;
+
+    use utils::Sign;
+    use super::NewBalance;
+
+    #[test]
+    fn parse_newbalance_valid() {
+        let line = "8001435000000080 EUR0BE                  0000009405296990071206                                                                0";
+
+        let actual = NewBalance::parse(line);
+
+        assert_eq!(actual.is_ok(), true, "NewBalance shoud be ok");
+        let actual = actual.unwrap();
+        assert_eq!(actual.new_sequence, "001", "old_sequence should be '001'");
+        assert_eq!(
+            actual.account_currency,
+            "435000000080 EUR0BE                  ",
+            "account_currency should be '435000000080 EUR0BE                  '"
+        );
+        assert_eq!(
+            actual.new_balance_sign,
+            Sign::Credit,
+            "new_balance_sign should be 'Credit'"
+        );
+        assert_eq!(
+            actual.new_balance,
+            9405296990,
+            "new_balance should be '9405296990'"
+        );
+        assert_eq!(
+            actual.new_balance_date,
+            NaiveDate::from_ymd(2006, 12, 07),
+            "new_balance_date should be 07/12/2006"
+        );
+    }
+
 }
 
 #[cfg(test)]

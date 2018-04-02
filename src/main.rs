@@ -23,39 +23,14 @@ fn run() -> Result<()> {
     let coda = Coda::parse(&options.coda_filename, options.encoding_label)
         .chain_err(|| "Could not parse coda")?;
 
-    println!("header creation_date=[{}]", coda.header.creation_date);
-    println!("header name_addressee=[{}]", coda.header.name_addressee);
-    println!(
-        "oldbalance account_currency=[{}]",
-        coda.old_balance.account_currency
-    );
-    println!(
-        "movement coda.movements[0].amount=[{}]",
-        coda.movements[0].amount
-    );
-    println!("movements  coda.movements.len()=[{}]", coda.movements.len());
-    println!(
-        "movement coda.movements[0].counterparty_account=[{:?}]",
-        coda.movements[0].counterparty_account
-    );
+    println!("header=[{:?}]", coda.header);
+    println!("old_balance=[{:?}]", coda.old_balance);
+    println!("movements=[{:?}]", coda.movements);
 
-    println!(
-        "information  coda.informations.len()=[{}]",
-        coda.information.len()
-    );
-    println!(
-        "information coda.information[0].commmunication=[{:?}]",
-        coda.information[0].communication
-    );
+    println!("information=[{:?}]", coda.information);
 
-    println!(
-        "free  coda.free_communications.len()=[{}]",
-        coda.free_communications.len()
-    );
-    println!(
-        "free coda.free_communications[0].text=[{:?}]",
-        coda.free_communications[0].text
-    );
+    println!("free_communications=[{:?}]", coda.free_communications);
+    println!("New balance: {:?}", coda.new_balance);
 
     Ok(())
 }
