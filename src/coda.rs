@@ -21,6 +21,12 @@ pub enum AccountStructure {
     IBANForeignAccountNumber,
 }
 
+#[derive(PartialEq, Debug)]
+pub enum CommunicationStructure {
+    Structured,
+    Unstructured,
+}
+
 #[allow(dead_code)]
 pub struct OldBalance {
     pub account_structure: AccountStructure, // ': (slice(1, 2), str),
@@ -34,20 +40,28 @@ pub struct OldBalance {
     pub coda_sequence: String,       // ': (slice(125, 128), str),
 }
 
-impl OldBalance {
-    fn parse_accountstructure(s: &str) -> Result<AccountStructure> {
-        match s {
-            "0" => Ok(AccountStructure::BelgianAccountNumber),
-            "1" => Ok(AccountStructure::ForeignAccountNumber),
-            "2" => Ok(AccountStructure::IBANBelgianAccountNumber),
-            "3" => Ok(AccountStructure::IBANForeignAccountNumber),
-            _ => Err(format!("Invalid AccountStructure value [{}]", s).into()),
-        }
+fn parse_accountstructure(s: &str) -> Result<AccountStructure> {
+    match s {
+        "0" => Ok(AccountStructure::BelgianAccountNumber),
+        "1" => Ok(AccountStructure::ForeignAccountNumber),
+        "2" => Ok(AccountStructure::IBANBelgianAccountNumber),
+        "3" => Ok(AccountStructure::IBANForeignAccountNumber),
+        _ => Err(format!("Invalid AccountStructure value [{}]", s).into()),
     }
+}
 
+fn parse_communicationstructure(s: &str) -> Result<CommunicationStructure> {
+    match s {
+        "0" => Ok(CommunicationStructure::Unstructured),
+        "1" => Ok(CommunicationStructure::Structured),
+        _ => Err(format!("Invalid CommunicationStructure value [{}]", s).into()),
+    }
+}
+
+impl OldBalance {
     pub fn parse(line: &str) -> Result<OldBalance> {
         Ok(OldBalance {
-            account_structure: parse_field(line, 1..2, OldBalance::parse_accountstructure)
+            account_structure: parse_field(line, 1..2, parse_accountstructure)
                 .chain_err(|| "Could not parse account_structure")?,
             old_sequence: parse_field(line, 2..5, parse_str)
                 .chain_err(|| "Could not parse old_sequence")?,
@@ -106,38 +120,6 @@ impl Header {
         })
     }
 }
-
-/*
-MOVE_COMMON = {
-    'sequence': (slice(2, 6), str),
-    'detail_sequence': (slice(6, 10), str),
-    }
-MOVE = {
-    '1': {
-        'bank_reference': (slice(10, 31), str),
-        'amount': (slice(31, 47), _amount),
-        'value_date': (slice(47, 53), _date),
-        'transaction_code': (slice(53, 61), str),
-        '_communication': (slice(61, 115), str),
-        'entry_date': (slice(115, 121), _date),
-        'statement_number': (slice(121, 124), str),
-        },
-    '2': {
-        '_communication': (slice(10, 63), str),
-        'customer_reference': (slice(63, 98), _string),
-        'counterparty_bic': (slice(98, 109), _string),
-        'r_transaction': (slice(112, 113), _string),
-        'r_reason': (slice(113, 117), _string),
-        'category_purpose': (slice(117, 121), _string),
-        'purpose': (slice(121, 125), _string),
-        },
-    '3': {
-        'counterparty_account': (slice(10, 47), _string),
-        'counterparty_name': (slice(47, 82), _string),
-        '_communication': (slice(82, 125), str),
-        },
-    }
-*/
 
 #[allow(dead_code)]
 pub struct Movement {
@@ -229,11 +211,79 @@ impl Movement {
     }
 }
 
+/*
+INFORMATION_COMMON = {
+    'sequence': (slice(2, 6), str),
+    'detail_sequence': (slice(6, 10), str),
+    }
+INFORMATION = {
+    '1': {
+        'bank_reference': (slice(10, 31), str),
+        'transaction_code': (slice(31, 39), str),
+        '_communication': (slice(39, 113), str),
+        },
+    '2': {
+        '_communication': (slice(10, 115), str),
+        },
+    '3': {
+        '_communication': (slice(10, 100), str),
+        },
+    }
+
+*/
+
+#[allow(dead_code)]
+pub struct Information {
+    pub sequence: String,         //': (slice(2, 6), str),
+    pub detail_sequence: String,  //': (slice(6, 10), str),
+    pub bank_reference: String,   //': (slice(10, 31), str),
+    pub transaction_code: String, //': (slice(31, 39), str),
+    pub communication_structure: CommunicationStructure,
+    pub communication: String, //': (slice(39, 113), str),
+                               // '_communication': (slice(10, 115), str),
+                               // '_communication': (slice(10, 100), str),
+}
+
+impl Information {
+    fn parse_type1(line: &str) -> Result<Information> {
+        Ok(Information {
+            sequence: parse_field(line, 2..6, parse_str).chain_err(|| "Could not parse sequence")?,
+            detail_sequence: parse_field(line, 6..10, parse_str)
+                .chain_err(|| "Could not parse detail_sequence")?,
+            bank_reference: parse_field(line, 10..31, parse_str)
+                .chain_err(|| "Could not parse detail_sequence")?,
+            transaction_code: parse_field(line, 31..39, parse_str)
+                .chain_err(|| "Could not parse detail_sequence")?,
+            communication_structure: parse_field(line, 39..40, parse_communicationstructure)
+                .chain_err(|| "Could not parse communication_structure")?,
+            communication: parse_field(line, 40..113, parse_str)
+                .chain_err(|| "Could not parse detail_sequence")?,
+        })
+    }
+
+    pub fn parse_type2(&mut self, line: &str) -> Result<()> {
+        let communication =
+            parse_field(line, 10..115, parse_str).chain_err(|| "Could not parse communication")?;
+        self.communication.push_str(&communication);
+
+        Ok(())
+    }
+
+    pub fn parse_type3(&mut self, line: &str) -> Result<()> {
+        let communication =
+            parse_field(line, 10..100, parse_str).chain_err(|| "Could not parse communication")?;
+        self.communication.push_str(&communication);
+
+        Ok(())
+    }
+}
+
 #[allow(dead_code)]
 pub struct Coda {
     pub header: Header,
     pub old_balance: OldBalance,
     pub movements: Vec<Movement>,
+    pub information: Vec<Information>,
 }
 
 impl Coda {
@@ -259,6 +309,7 @@ impl Coda {
         let mut header: Option<Header> = None;
         let mut old_balance: Option<OldBalance> = None;
         let mut movements: Vec<Movement> = Vec::new();
+        let mut informations: Vec<Information> = Vec::new();
         for line in cursor.lines() {
             let line = line.unwrap();
             match line.get(0..1) {
@@ -294,6 +345,28 @@ impl Coda {
                     }
                     _ => {}
                 },
+                Some("3") => match line.get(1..2) {
+                    Some("1") => {
+                        let information = Some(Information::parse_type1(&line)
+                            .chain_err(|| -> Error { "Could not parse Information".into() })?);
+                        informations.push(information.unwrap());
+                    }
+                    Some("2") => {
+                        let information = informations.last_mut();
+                        let mut information = information.unwrap();
+                        information
+                            .parse_type2(&line)
+                            .chain_err(|| "Error parsing information type 2")?;
+                    }
+                    Some("3") => {
+                        let information = informations.last_mut();
+                        let mut information = information.unwrap();
+                        information
+                            .parse_type3(&line)
+                            .chain_err(|| "Error parsing information type 3")?;
+                    }
+                    _ => {}
+                },
                 _ => {}
             };
         }
@@ -303,6 +376,7 @@ impl Coda {
                     header: header,
                     old_balance: old_balance,
                     movements: movements,
+                    information: informations,
                 });
             }
         }
@@ -373,6 +447,7 @@ mod test_parse_oldbalance {
     use utils::Sign;
     use super::OldBalance;
     use super::AccountStructure;
+    use super::parse_accountstructure;
 
     #[test]
     fn parse_oldbalance_valid() {
@@ -423,7 +498,7 @@ mod test_parse_oldbalance {
 
     #[test]
     fn parse_accountstructure_valid_BelgianAccountNumber() {
-        let actual = OldBalance::parse_accountstructure("0");
+        let actual = parse_accountstructure("0");
         assert_eq!(actual.is_ok(), true, "'0' should be ok");
         assert_eq!(
             actual.unwrap(),
@@ -434,7 +509,7 @@ mod test_parse_oldbalance {
 
     #[test]
     fn parse_accountstructure_valid_ForeignAccountNumber() {
-        let actual = OldBalance::parse_accountstructure("1");
+        let actual = parse_accountstructure("1");
         assert_eq!(actual.is_ok(), true, "'1' should be ok");
         assert_eq!(
             actual.unwrap(),
@@ -445,7 +520,7 @@ mod test_parse_oldbalance {
 
     #[test]
     fn parse_accountstructure_valid_IBANBelgianAccountNumber() {
-        let actual = OldBalance::parse_accountstructure("2");
+        let actual = parse_accountstructure("2");
         assert_eq!(actual.is_ok(), true, "'2' should be ok");
         assert_eq!(
             actual.unwrap(),
@@ -456,7 +531,7 @@ mod test_parse_oldbalance {
 
     #[test]
     fn parse_accountstructure_valid_IBANForeignAccountNumber() {
-        let actual = OldBalance::parse_accountstructure("3");
+        let actual = parse_accountstructure("3");
         assert_eq!(actual.is_ok(), true, "'3' should be ok");
         assert_eq!(
             actual.unwrap(),
@@ -467,7 +542,7 @@ mod test_parse_oldbalance {
 
     #[test]
     fn parse_accountstructure_valid_invalid() {
-        let actual = OldBalance::parse_accountstructure("4");
+        let actual = parse_accountstructure("4");
         assert_eq!(actual.is_ok(), false, "'4' should not be ok");
     }
 }
@@ -613,6 +688,93 @@ mod test_parse_freecommunication {
         assert_eq!(
             lines_iter.next(),
             Some(String::from("D\'INVESTISSEMENT N° 123"))
+        );
+    }
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod test_parse_information {
+    use super::Information;
+    use super::CommunicationStructure;
+    use super::parse_communicationstructure;
+
+    #[test]
+    fn parse_information_type1_valid() {
+        let line = "3100070006IHMI00001 TBOGOVOVERS501130001001TPF CONSULTING                                                                    1 0";
+
+        let actual = Information::parse_type1(line);
+
+        assert_eq!(actual.is_ok(), true, "Information shoud be ok");
+        let actual = actual.unwrap();
+        assert_eq!(actual.sequence, "0007", "sequence should be '0007'");
+        assert_eq!(
+            actual.detail_sequence,
+            "0006",
+            "detail_sequence should be '0006'"
+        );
+        assert_eq!(
+            actual.bank_reference,
+            "IHMI00001 TBOGOVOVERS",
+            "bank_reference should be 'IHMI00001 TBOGOVOVERS'"
+        );
+        assert_eq!(
+            actual.transaction_code,
+            "50113000",
+            "transaction_code should be '50113000'"
+        );
+        assert_eq!(
+            actual.communication,
+            "001TPF CONSULTING                                                        ",
+            "communication should be '001TPF CONSULTING                                                        '"
+        );
+    }
+
+    #[test]
+    fn parse_information_type2_valid() {
+        let line1 = "3100070006IHMI00001 TBOGOVOVERS501130001001TPF CONSULTING                                                                    1 0";
+        let line2 = "3200070006AV. DE HAVESKERCKE  46             1190   BRUXELLES                                                                0 0";
+
+        let actual = Information::parse_type1(line1);
+        let mut actual = actual.unwrap();
+        let result = actual.parse_type2(line2);
+
+        assert_eq!(result.is_ok(), true);
+        assert_eq!(actual.communication, "001TPF CONSULTING                                                        AV. DE HAVESKERCKE  46             1190   BRUXELLES                                                      ", "communication should be '1001TPF CONSULTING                                                        AV. DE HAVESKERCKE  46             1190   BRUXELLES                                                      '");
+    }
+
+    #[test]
+    fn parse_information_type3_valid() {
+        let line1 = "3100070006IHMI00001 TBOGOVOVERS501130001001TPF CONSULTING                                                                    1 0";
+        let line3 = "3300370001THIRD LINE                                                                                                         0 0";
+
+        let actual = Information::parse_type1(line1);
+        let mut actual = actual.unwrap();
+        let result = actual.parse_type3(line3);
+
+        assert_eq!(result.is_ok(), true);
+        assert_eq!(actual.communication, "001TPF CONSULTING                                                        THIRD LINE                                                                                ", "communication should be '1001TPF CONSULTING                                                        THIRD LINE                                                                                '");
+    }
+
+    #[test]
+    fn parse_communicationstructure_valid_Unstructured() {
+        let actual = parse_communicationstructure("0");
+        assert_eq!(actual.is_ok(), true, "'0' should be ok");
+        assert_eq!(
+            actual.unwrap(),
+            CommunicationStructure::Unstructured,
+            "'0' should be Unstructured"
+        );
+    }
+
+    #[test]
+    fn parse_communicationstructure_valid_Structured() {
+        let actual = parse_communicationstructure("1");
+        assert_eq!(actual.is_ok(), true, "'1' should be ok");
+        assert_eq!(
+            actual.unwrap(),
+            CommunicationStructure::Structured,
+            "'1' should be Structured"
         );
     }
 }

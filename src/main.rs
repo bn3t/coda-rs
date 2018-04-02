@@ -39,6 +39,14 @@ fn run() -> Result<()> {
         coda.movements[0].counterparty_account
     );
 
+    println!(
+        "information  coda.informations.len()=[{}]",
+        coda.information.len()
+    );
+    println!(
+        "information coda.information[0].commmunication=[{:?}]",
+        coda.information[0].communication
+    );
     Ok(())
 }
 
