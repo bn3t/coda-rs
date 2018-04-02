@@ -30,6 +30,14 @@ pub fn parse_str(s: &str) -> Result<String> {
     Ok(String::from(s))
 }
 
+pub fn parse_str_trim(s: &str) -> Result<String> {
+    Ok(String::from(s.trim_right()))
+}
+
+pub fn parse_str_append(s: &str) -> Result<String> {
+    Ok(format!("\n{}", s.trim_right()))
+}
+
 pub fn parse_u8(s: &str) -> Result<u8> {
     Ok(s.parse::<u8>().chain_err(|| "Could not parse u8")?)
 }
@@ -62,14 +70,7 @@ pub fn parse_field<T>(
 mod test_parse_utils {
     use chrono::NaiveDate;
 
-    use super::parse_field;
-    use super::parse_date;
-    use super::parse_str;
-    use super::parse_duplicate;
-    use super::parse_u8;
-    use super::parse_u64;
-    use super::parse_sign;
-    use super::Sign;
+    use super::*;
 
     #[test]
     fn parse_date_valid() {
@@ -139,6 +140,26 @@ mod test_parse_utils {
 
         assert_eq!(actual.is_ok(), true, "u64 '20000' should be ok");
         assert_eq!(actual.unwrap(), 20000, "u64 '20000' should be 20000");
+    }
+
+    #[test]
+    fn parse_str_trim_valid() {
+        let actual = parse_str_trim("BLAH   ");
+
+        assert_eq!(actual.is_ok(), true, "str 'BLAH   ' should be ok");
+        assert_eq!(actual.unwrap(), "BLAH", "str 'BLAH   ' should be 'BLAH'");
+    }
+
+    #[test]
+    fn parse_str_append_valid() {
+        let actual = parse_str_append("BLAH   ");
+
+        assert_eq!(actual.is_ok(), true, "str 'BLAH   ' should be ok");
+        assert_eq!(
+            actual.unwrap(),
+            "\nBLAH",
+            "str 'BLAH   ' should be '\\nBLAH'"
+        );
     }
 
     #[test]

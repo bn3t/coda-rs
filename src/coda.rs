@@ -10,8 +10,8 @@ use coda::encoding::label::encoding_from_whatwg_label;
 use coda::encoding::DecoderTrap;
 
 use errors::*;
-use utils::{parse_date, parse_duplicate, parse_field, parse_sign, parse_str, Sign, parse_u64,
-            parse_u8};
+use utils::{parse_date, parse_duplicate, parse_field, parse_sign, parse_str, parse_str_append,
+            parse_str_trim, Sign, parse_u64, parse_u8};
 
 #[derive(PartialEq, Debug)]
 pub enum AccountStructure {
@@ -27,12 +27,31 @@ pub enum CommunicationStructure {
     Unstructured,
 }
 
+fn parse_accountstructure(s: &str) -> Result<AccountStructure> {
+    match s {
+        "0" => Ok(AccountStructure::BelgianAccountNumber),
+        "1" => Ok(AccountStructure::ForeignAccountNumber),
+        "2" => Ok(AccountStructure::IBANBelgianAccountNumber),
+        "3" => Ok(AccountStructure::IBANForeignAccountNumber),
+        _ => Err(format!("Invalid AccountStructure value [{}]", s).into()),
+    }
+}
+
+fn parse_communicationstructure(s: &str) -> Result<CommunicationStructure> {
+    match s {
+        "0" => Ok(CommunicationStructure::Unstructured),
+        "1" => Ok(CommunicationStructure::Structured),
+        _ => Err(format!("Invalid CommunicationStructure value [{}]", s).into()),
+    }
+}
+
 #[allow(dead_code)]
 pub struct Coda {
     pub header: Header,
     pub old_balance: OldBalance,
     pub movements: Vec<Movement>,
     pub information: Vec<Information>,
+    pub free_communications: Vec<FreeCommunication>,
 }
 
 #[allow(dead_code)]
@@ -96,22 +115,19 @@ pub struct Information {
     pub communication: String, //': (slice(39, 113), str),
 }
 
-fn parse_accountstructure(s: &str) -> Result<AccountStructure> {
-    match s {
-        "0" => Ok(AccountStructure::BelgianAccountNumber),
-        "1" => Ok(AccountStructure::ForeignAccountNumber),
-        "2" => Ok(AccountStructure::IBANBelgianAccountNumber),
-        "3" => Ok(AccountStructure::IBANForeignAccountNumber),
-        _ => Err(format!("Invalid AccountStructure value [{}]", s).into()),
+/*
+FREE_COMMUNICATION = {
+    'sequence': (slice(2, 6), str),
+    'detail_sequence': (slice(6, 10), str),
+    'text': (slice(32, 112), _string),
     }
-}
+*/
 
-fn parse_communicationstructure(s: &str) -> Result<CommunicationStructure> {
-    match s {
-        "0" => Ok(CommunicationStructure::Unstructured),
-        "1" => Ok(CommunicationStructure::Structured),
-        _ => Err(format!("Invalid CommunicationStructure value [{}]", s).into()),
-    }
+#[allow(dead_code)]
+pub struct FreeCommunication {
+    pub sequence: String,        //': (slice(2, 6), str),
+    pub detail_sequence: String, //': (slice(6, 10), str),
+    pub text: String,            //': (slice(32, 112), str),
 }
 
 impl OldBalance {
@@ -262,6 +278,25 @@ impl Information {
     }
 }
 
+impl FreeCommunication {
+    pub fn parse_line1(line: &str) -> Result<FreeCommunication> {
+        Ok(FreeCommunication {
+            sequence: parse_field(line, 2..6, parse_str).chain_err(|| "Could not parse sequence")?,
+            detail_sequence: parse_field(line, 6..10, parse_str)
+                .chain_err(|| "Could not parse detail_sequence")?,
+            text: parse_field(line, 32..112, parse_str_trim).chain_err(|| "Could not parse text")?,
+        })
+    }
+
+    pub fn parse_following(&mut self, line: &str) -> Result<()> {
+        let text =
+            parse_field(line, 32..112, parse_str_append).chain_err(|| "Could not parse text")?;
+        self.text.push_str(&text);
+
+        Ok(())
+    }
+}
+
 impl Coda {
     pub fn parse(coda_filename: &str, encoding_label: Option<String>) -> Result<Coda> {
         println!("Parsing file: {}", coda_filename);
@@ -286,6 +321,7 @@ impl Coda {
         let mut old_balance: Option<OldBalance> = None;
         let mut movements: Vec<Movement> = Vec::new();
         let mut informations: Vec<Information> = Vec::new();
+        let mut free_communications: Vec<FreeCommunication> = Vec::new();
         for line in cursor.lines() {
             let line = line.unwrap();
             match line.get(0..1) {
@@ -343,6 +379,22 @@ impl Coda {
                     }
                     _ => {}
                 },
+                Some("4") => match line.get(6..10) {
+                    Some("0000") => {
+                        let free_communication = Some(FreeCommunication::parse_line1(&line)
+                            .chain_err(|| -> Error {
+                                "Could not parse FreeCommunication".into()
+                            })?);
+                        free_communications.push(free_communication.unwrap());
+                    }
+                    _ => {
+                        let free_communication = free_communications.last_mut();
+                        let mut free_communication = free_communication.unwrap();
+                        free_communication
+                            .parse_following(&line)
+                            .chain_err(|| "Error parsing FreeCommunication following lines")?;
+                    }
+                },
                 _ => {}
             };
         }
@@ -353,6 +405,7 @@ impl Coda {
                     old_balance: old_balance,
                     movements: movements,
                     information: informations,
+                    free_communications: free_communications,
                 });
             }
         }
@@ -647,12 +700,11 @@ mod test_parse_movement {
 mod test_parse_freecommunication {
 
     use std::io::{self, BufRead};
-    // use chrono::NaiveDate;
 
     use coda::encoding::label::encoding_from_whatwg_label;
     use coda::encoding::DecoderTrap;
 
-    // use super::Movement;
+    use super::FreeCommunication;
 
     #[test]
     fn parse_freecommunication_windows1252() {
@@ -664,6 +716,88 @@ mod test_parse_freecommunication {
         assert_eq!(
             lines_iter.next(),
             Some(String::from("D\'INVESTISSEMENT N° 123"))
+        );
+    }
+
+    #[test]
+    fn parse_freecommunication_line1_valid() {
+        let line = "4 00010000                      LINE 1 FREE COMMUNICATION                                                      X               1";
+
+        let actual = FreeCommunication::parse_line1(line);
+
+        assert_eq!(actual.is_ok(), true, "FreeCommunication shoud be ok");
+        let actual = actual.unwrap();
+        assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
+        assert_eq!(
+            actual.detail_sequence,
+            "0000",
+            "detail_sequence should be '0000'"
+        );
+        assert_eq!(actual.text, "LINE 1 FREE COMMUNICATION                                                      X", "communication should be 'LINE 1 FREE COMMUNICATION                                                       '");
+    }
+
+    #[test]
+    fn parse_freecommunication_line1_trimvalid() {
+        let line = "4 00010000                      LINE 1 FREE COMMUNICATION                                                                      1";
+
+        let actual = FreeCommunication::parse_line1(line);
+
+        assert_eq!(actual.is_ok(), true, "FreeCommunication shoud be ok");
+        let actual = actual.unwrap();
+        assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
+        assert_eq!(
+            actual.detail_sequence,
+            "0000",
+            "detail_sequence should be '0000'"
+        );
+        assert_eq!(
+            actual.text,
+            "LINE 1 FREE COMMUNICATION",
+            "communication should be 'LINE 1 FREE COMMUNICATION'"
+        );
+    }
+
+    #[test]
+    fn parse_freecommunication_following_valid() {
+        let line1 = "4 00010000                      LINE 1 FREE COMMUNICATION                                                      X               1";
+        let line2 = "4 00010001                      LINE 2 FREE COMMUNICATION                                                      Y               1";
+
+        let actual = FreeCommunication::parse_line1(line1);
+        assert_eq!(actual.is_ok(), true, "FreeCommunication shoud be ok");
+        let mut actual = actual.unwrap();
+        let result = actual.parse_following(line2);
+
+        assert_eq!(result.is_ok(), true, "Result should be ok");
+        assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
+        assert_eq!(
+            actual.detail_sequence,
+            "0000",
+            "detail_sequence should be '0000'"
+        );
+        assert_eq!(actual.text, "LINE 1 FREE COMMUNICATION                                                      X\nLINE 2 FREE COMMUNICATION                                                      Y", "communication should be 'LINE 1 FREE COMMUNICATION                                                       '");
+    }
+
+    #[test]
+    fn parse_freecommunication_following_trim_valid() {
+        let line1 = "4 00010000                      LINE 1 FREE COMMUNICATION                                                                      1";
+        let line2 = "4 00010001                      LINE 2 FREE COMMUNICATION                                                                      1";
+
+        let actual = FreeCommunication::parse_line1(line1);
+        assert_eq!(actual.is_ok(), true, "FreeCommunication shoud be ok");
+        let mut actual = actual.unwrap();
+        let result = actual.parse_following(line2);
+
+        assert_eq!(result.is_ok(), true, "Result should be ok");
+        assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
+        assert_eq!(
+            actual.detail_sequence,
+            "0000",
+            "detail_sequence should be '0000'"
+        );
+        assert_eq!(
+            actual.text,
+            "LINE 1 FREE COMMUNICATION\nLINE 2 FREE COMMUNICATION",
+            "communication should be 'LINE 1 FREE COMMUNICATION\nLINE 2 FREE COMMUNICATION'"
         );
     }
 }
