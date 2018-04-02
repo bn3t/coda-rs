@@ -13,6 +13,7 @@ mod coda;
 mod options;
 mod errors;
 mod utils;
+mod json;
 
 use coda::Coda;
 use options::Options;
@@ -38,7 +39,7 @@ fn run() -> Result<()> {
         println!("Trailer: {:?}", coda.trailer);
     }
     if options.json {
-        let j = serde_json::to_string_pretty(&coda).chain_err(|| "Unable to generate json file")?;
+        let j = json::to_json(&coda).chain_err(|| "Could not make json")?;
         println!("{}", j);
     }
 
