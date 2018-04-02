@@ -8,6 +8,7 @@ use self::argparse::{ArgumentParser, Print, Store, StoreOption, StoreTrue};
 pub struct Options {
     pub coda_filename: String,
     pub json: bool,
+    pub debug: bool,
     pub encoding_label: Option<String>,
 }
 
@@ -16,6 +17,7 @@ impl Options {
         let mut options = Options {
             coda_filename: String::new(),
             json: false,
+            debug: false,
             encoding_label: None,
         };
         {
@@ -25,6 +27,11 @@ impl Options {
                 &["-j", "--json"],
                 StoreTrue,
                 "Convert coda files to json",
+            );
+            ap.refer(&mut options.debug).add_option(
+                &["-d", "--debug"],
+                StoreTrue,
+                "Debug parsed coda data on the console",
             );
             ap.refer(&mut options.encoding_label).add_option(
                 &["-e", "--encoding"],

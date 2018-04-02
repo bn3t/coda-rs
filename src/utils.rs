@@ -5,7 +5,7 @@ use chrono::NaiveDate;
 
 use errors::*;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub enum Sign {
     Credit,
     Debit,
