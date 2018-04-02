@@ -1,9 +1,13 @@
 extern crate chrono;
+extern crate encoding;
 
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Cursor, Read};
 
 use chrono::NaiveDate;
+
+use coda::encoding::label::encoding_from_whatwg_label;
+use coda::encoding::DecoderTrap;
 
 use errors::*;
 use utils::{parse_date, parse_duplicate, parse_field, parse_sign, parse_str, Sign, parse_u64,
@@ -233,31 +237,44 @@ pub struct Coda {
 }
 
 impl Coda {
-    pub fn parse(coda_filename: &str) -> Result<Coda> {
+    pub fn parse(coda_filename: &str, encoding_label: Option<String>) -> Result<Coda> {
         println!("Parsing file: {}", coda_filename);
         let f =
             File::open(coda_filename).chain_err(|| format!("Unable to open {}", coda_filename))?;
 
-        let reader = BufReader::new(f);
+        let encoding = encoding_label
+            .and_then(|el| encoding_from_whatwg_label(&el))
+            .unwrap_or(encoding_from_whatwg_label("utf-8").unwrap());
+
+        let mut reader = BufReader::new(f);
+        let mut buf = Vec::new();
+
+        reader
+            .read_to_end(&mut buf)
+            .chain_err(|| "Error reading into buffer")?;
+
+        let decoded = encoding.decode(&buf, DecoderTrap::Strict).unwrap();
+        let cursor = Cursor::new(decoded);
+
         let mut header: Option<Header> = None;
         let mut old_balance: Option<OldBalance> = None;
         let mut movements: Vec<Movement> = Vec::new();
-        for line in reader.lines() {
-            let l = line.unwrap();
-            match l.get(0..1) {
+        for line in cursor.lines() {
+            let line = line.unwrap();
+            match line.get(0..1) {
                 Some("0") => {
-                    header = Some(Header::parse(&l)
+                    header = Some(Header::parse(&line)
                         .chain_err(|| -> Error { "Could not parse header".into() })?);
                     //let header  = Header {};
                     //coda.statements.push(statement);
                 }
                 Some("1") => {
-                    old_balance = Some(OldBalance::parse(&l)
+                    old_balance = Some(OldBalance::parse(&line)
                         .chain_err(|| -> Error { "Could not parse oldbalance".into() })?)
                 }
-                Some("2") => match l.get(1..2) {
+                Some("2") => match line.get(1..2) {
                     Some("1") => {
-                        let movement = Some(Movement::parse_type1(&l)
+                        let movement = Some(Movement::parse_type1(&line)
                             .chain_err(|| -> Error { "Could not parse Movement".into() })?);
                         movements.push(movement.unwrap());
                     }
@@ -265,14 +282,14 @@ impl Coda {
                         let movement = movements.last_mut();
                         let mut movement = movement.unwrap();
                         movement
-                            .parse_type2(&l)
+                            .parse_type2(&line)
                             .chain_err(|| "Error parsing movement type 2")?;
                     }
                     Some("3") => {
                         let movement = movements.last_mut();
                         let mut movement = movement.unwrap();
                         movement
-                            .parse_type3(&l)
+                            .parse_type3(&line)
                             .chain_err(|| "Error parsing movement type 3")?;
                     }
                     _ => {}
@@ -457,6 +474,7 @@ mod test_parse_oldbalance {
 
 #[cfg(test)]
 mod test_parse_movement {
+
     use chrono::NaiveDate;
 
     use super::Movement;
@@ -571,5 +589,30 @@ mod test_parse_movement {
         );
 
         assert_eq!(actual.communication, "0BORDEREAU DE DECOMPTE AVANCES    015 NUMERO D\'OPERATI                                           ");
+    }
+}
+
+#[cfg(test)]
+mod test_parse_freecommunication {
+
+    use std::io::{self, BufRead};
+    // use chrono::NaiveDate;
+
+    use coda::encoding::label::encoding_from_whatwg_label;
+    use coda::encoding::DecoderTrap;
+
+    // use super::Movement;
+
+    #[test]
+    fn parse_freecommunication_windows1252() {
+        let encoding = encoding_from_whatwg_label("windows-1252").unwrap();
+        let line = b"D'INVESTISSEMENT N\xB0 123\n";
+        let line = encoding.decode(line, DecoderTrap::Strict).unwrap();
+        let cursor = io::Cursor::new(line);
+        let mut lines_iter = cursor.lines().map(|l| l.unwrap());
+        assert_eq!(
+            lines_iter.next(),
+            Some(String::from("D\'INVESTISSEMENT N° 123"))
+        );
     }
 }

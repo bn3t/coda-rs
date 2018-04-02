@@ -18,13 +18,18 @@ positional arguments:
 optional arguments:
   -h,--help             show this help message and exit
   -j,--json             Convert coda files to json
+  -e,--encoding ENCODING
+                        Encoding for reading, use a whatwg label - See
+                        https://encoding.spec.whatwg.org/#concept-encoding-get
+                        (default to utf-8)
   -v,--version          Show version
 ```
 
 ### Example
 
 ```
-coda-rs --json FILE.CD2
+# To read a file in windows-1252 (aka iso-8859-1, aka cp1252, aka latin1)
+$ coda-rs --json -e latin1 FILE.CD2
 ```
 
 ## Features
@@ -34,6 +39,7 @@ coda-rs --json FILE.CD2
 * Parse movement record (2.1)
 * Parse movement record (2.2)
 * Parse movement record (2.3)
+* Specify encoding for reading (default to utf-8)
 
 ### TODO
 

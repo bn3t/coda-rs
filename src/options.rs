@@ -3,11 +3,12 @@ extern crate argparse;
 use std::io::{stderr, stdout};
 use std::result::Result;
 
-use self::argparse::{ArgumentParser, Print, Store, StoreTrue};
+use self::argparse::{ArgumentParser, Print, Store, StoreOption, StoreTrue};
 
 pub struct Options {
     pub coda_filename: String,
     pub json: bool,
+    pub encoding_label: Option<String>,
 }
 
 impl Options {
@@ -15,6 +16,7 @@ impl Options {
         let mut options = Options {
             coda_filename: String::new(),
             json: false,
+            encoding_label: None,
         };
         {
             let mut ap = ArgumentParser::new();
@@ -23,6 +25,11 @@ impl Options {
                 &["-j", "--json"],
                 StoreTrue,
                 "Convert coda files to json",
+            );
+            ap.refer(&mut options.encoding_label).add_option(
+                &["-e", "--encoding"],
+                StoreOption,
+                "Encoding for reading, use a whatwg label - See https://encoding.spec.whatwg.org/#concept-encoding-get (default to utf-8)",
             );
             ap.refer(&mut options.coda_filename)
                 .add_argument("coda", Store, "Coda file to parse")
@@ -69,11 +76,15 @@ mod test_options {
             String::from("coda-rs"),
             String::from("-j"),
             String::from("coda_file.txt"),
+            String::from("-e"),
+            String::from("windows-1252"),
         ];
         let options = Options::parse_options(args);
         assert_eq!(options.is_ok(), true, "Returned options should be Ok");
         let options = options.unwrap();
         assert_eq!(options.coda_filename, "coda_file.txt");
         assert_eq!(options.json, true);
+        assert_eq!(options.encoding_label.is_some(), true);
+        assert_eq!(options.encoding_label.unwrap(), "windows-1252");
     }
 }

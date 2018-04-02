@@ -20,7 +20,8 @@ fn run() -> Result<()> {
         .map_err(|c| exit(c))
         .unwrap();
 
-    let coda = Coda::parse(&options.coda_filename).chain_err(|| "Could not parse coda")?;
+    let coda = Coda::parse(&options.coda_filename, options.encoding_label)
+        .chain_err(|| "Could not parse coda")?;
 
     println!("header creation_date=[{}]", coda.header.creation_date);
     println!("header name_addressee=[{}]", coda.header.name_addressee);

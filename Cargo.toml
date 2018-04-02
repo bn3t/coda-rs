@@ -8,6 +8,7 @@ build = "build.rs"
 argparse = "0.2.1"
 error-chain = "0.10"
 chrono = "0.4.1"
+encoding = "0.2"
 
 [build-dependencies]
 chrono = "0.4.1"
