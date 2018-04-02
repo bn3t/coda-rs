@@ -1,5 +1,7 @@
 extern crate chrono;
 extern crate encoding;
+extern crate serde;
+extern crate serde_json;
 
 use std::fs::File;
 use std::io::{BufRead, BufReader, Cursor, Read};
@@ -13,7 +15,7 @@ use errors::*;
 use utils::{parse_date, parse_duplicate, parse_field, parse_sign, parse_str, parse_str_append,
             parse_str_trim, Sign, parse_u32, parse_u64, parse_u8};
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Serialize)]
 pub enum AccountStructure {
     BelgianAccountNumber,
     ForeignAccountNumber,
@@ -21,7 +23,7 @@ pub enum AccountStructure {
     IBANForeignAccountNumber,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Serialize)]
 pub enum CommunicationStructure {
     Structured,
     Unstructured,
@@ -45,7 +47,7 @@ fn parse_communicationstructure(s: &str) -> Result<CommunicationStructure> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Coda {
     pub header: Header,
     pub old_balance: OldBalance,
@@ -56,9 +58,9 @@ pub struct Coda {
     pub trailer: Trailer,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Header {
-    pub creation_date: NaiveDate,
+    #[serde(skip_serializing)] pub creation_date: NaiveDate,
     pub bank_id: String,
     pub duplicate: bool,
     pub file_reference: String,
@@ -70,30 +72,30 @@ pub struct Header {
     pub version: u8,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct OldBalance {
     pub account_structure: AccountStructure, // ': (slice(1, 2), str),
     pub old_sequence: String,                // ': (slice(2, 5), str),
     pub account_currency: String,            // ': (slice(5, 42), str),
     pub old_balance_sign: Sign,
-    pub old_balance: u64,            // ': (slice(43, 58), _amount),
-    pub old_balance_date: NaiveDate, // ': (slice(58, 64), _date),
+    pub old_balance: u64, // ': (slice(43, 58), _amount),
+    #[serde(skip_serializing)] pub old_balance_date: NaiveDate, // ': (slice(58, 64), _date),
     pub account_holder_name: String, // ': (slice(64, 90), _string),
     pub account_description: String, // ': (slice(90, 125), _string),
-    pub coda_sequence: String,       // ': (slice(125, 128), str),
+    pub coda_sequence: String, // ': (slice(125, 128), str),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Movement {
-    pub sequence: String,         //': (slice(2, 6), str),
-    pub detail_sequence: String,  //': (slice(6, 10), str),
-    pub bank_reference: String,   //': (slice(10, 31), str),
-    pub amount: u64,              //': (slice(31, 47), _amount),
-    pub value_date: NaiveDate,    //': (slice(47, 53), _date),
-    pub transaction_code: String, //': (slice(53, 61), str),
-    pub communication: String,    //': (slice(61, 115), str),
-    pub entry_date: NaiveDate,    //': (slice(115, 121), _date),
-    pub statement_number: String, //': (slice(121, 124), str),
+    pub sequence: String,                                 //': (slice(2, 6), str),
+    pub detail_sequence: String,                          //': (slice(6, 10), str),
+    pub bank_reference: String,                           //': (slice(10, 31), str),
+    pub amount: u64,                                      //': (slice(31, 47), _amount),
+    #[serde(skip_serializing)] pub value_date: NaiveDate, //': (slice(47, 53), _date),
+    pub transaction_code: String,                         //': (slice(53, 61), str),
+    pub communication: String,                            //': (slice(61, 115), str),
+    #[serde(skip_serializing)] pub entry_date: NaiveDate, //': (slice(115, 121), _date),
+    pub statement_number: String,                         //': (slice(121, 124), str),
     // type 2
     //pub _communication: String,     //': (slice(10, 63), str),
     pub customer_reference: Option<String>, //': (slice(63, 98), _string),
@@ -107,7 +109,7 @@ pub struct Movement {
     pub counterparty_name: Option<String>,    //': (slice(47, 82), _string),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Information {
     pub sequence: String,         //': (slice(2, 6), str),
     pub detail_sequence: String,  //': (slice(6, 10), str),
@@ -117,20 +119,20 @@ pub struct Information {
     pub communication: String, //': (slice(39, 113), str),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct FreeCommunication {
     pub sequence: String,        //': (slice(2, 6), str),
     pub detail_sequence: String, //': (slice(6, 10), str),
     pub text: String,            //': (slice(32, 112), str),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct NewBalance {
     pub new_sequence: String,     //': (slice(1, 4), str),
     pub account_currency: String, //': (slice(4, 41), str),
     pub new_balance_sign: Sign,
-    pub new_balance: u64,            //': (slice(41, 57), _amount),
-    pub new_balance_date: NaiveDate, //': (slice(57, 63), _date),
+    pub new_balance: u64, //': (slice(41, 57), _amount),
+    #[serde(skip_serializing)] pub new_balance_date: NaiveDate, //': (slice(57, 63), _date),
 }
 
 /*
@@ -141,7 +143,7 @@ TRAILER = {
     }
 
 */
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Trailer {
     pub number_records: u32, //': (slice(16, 22), int),
     pub total_debit: u64,    //': (slice(22, 37), _amount),
@@ -377,8 +379,6 @@ impl Coda {
                 Some("0") => {
                     header = Some(Header::parse(&line)
                         .chain_err(|| -> Error { "Could not parse header".into() })?);
-                    //let header  = Header {};
-                    //coda.statements.push(statement);
                 }
                 Some("1") => {
                     old_balance = Some(OldBalance::parse(&line)
