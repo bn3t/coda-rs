@@ -5,6 +5,20 @@ use chrono::NaiveDate;
 
 use errors::*;
 
+#[derive(PartialEq, Debug)]
+pub enum Sign {
+    Credit,
+    Debit,
+}
+
+pub fn parse_sign(s: &str) -> Result<Sign> {
+    match s {
+        "0" => Ok(Sign::Credit),
+        "1" => Ok(Sign::Debit),
+        _ => Err(format!("Invalid Sign value [{}]", s).into()),
+    }
+}
+
 pub fn parse_date(s: &str) -> Result<NaiveDate> {
     let date: NaiveDate =
         NaiveDate::parse_from_str(s, "%d%m%y").chain_err(|| "Could not parse date")?;
@@ -54,6 +68,8 @@ mod test_parse_utils {
     use super::parse_duplicate;
     use super::parse_u8;
     use super::parse_u64;
+    use super::parse_sign;
+    use super::Sign;
 
     #[test]
     fn parse_date_valid() {
@@ -134,6 +150,28 @@ mod test_parse_utils {
             false,
             "u8 '200000200000200000200000200000200000' should not be ok"
         );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn parse_sign_valid_Credit() {
+        let actual = parse_sign("0");
+        assert_eq!(actual.is_ok(), true, "'0' should be ok");
+        assert_eq!(actual.unwrap(), Sign::Credit, "'0' should be Credit");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn parse_sign_valid_Debit() {
+        let actual = parse_sign("1");
+        assert_eq!(actual.is_ok(), true, "'1' should be ok");
+        assert_eq!(actual.unwrap(), Sign::Debit, "'1' should be Debit");
+    }
+
+    #[test]
+    fn parse_sign_valid_invalid() {
+        let actual = parse_sign("3");
+        assert_eq!(actual.is_ok(), false, "'3' should not be ok");
     }
 
     #[test]
