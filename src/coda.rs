@@ -10,8 +10,8 @@ use coda::encoding::label::encoding_from_whatwg_label;
 use coda::encoding::DecoderTrap;
 
 use errors::*;
-use utils::{parse_date, parse_duplicate, parse_field, parse_sign, parse_str, Sign, parse_u64,
-            parse_u8};
+use utils::{parse_date, parse_duplicate, parse_field, parse_sign, parse_str, parse_str_append,
+            parse_str_trim, Sign, parse_u64, parse_u8};
 
 #[derive(PartialEq, Debug)]
 pub enum AccountStructure {
@@ -25,19 +25,6 @@ pub enum AccountStructure {
 pub enum CommunicationStructure {
     Structured,
     Unstructured,
-}
-
-#[allow(dead_code)]
-pub struct OldBalance {
-    pub account_structure: AccountStructure, // ': (slice(1, 2), str),
-    pub old_sequence: String,                // ': (slice(2, 5), str),
-    pub account_currency: String,            // ': (slice(5, 42), str),
-    pub old_balance_sign: Sign,
-    pub old_balance: u64,            // ': (slice(43, 58), _amount),
-    pub old_balance_date: NaiveDate, // ': (slice(58, 64), _date),
-    pub account_holder_name: String, // ': (slice(64, 90), _string),
-    pub account_description: String, // ': (slice(90, 125), _string),
-    pub coda_sequence: String,       // ': (slice(125, 128), str),
 }
 
 fn parse_accountstructure(s: &str) -> Result<AccountStructure> {
@@ -56,6 +43,91 @@ fn parse_communicationstructure(s: &str) -> Result<CommunicationStructure> {
         "1" => Ok(CommunicationStructure::Structured),
         _ => Err(format!("Invalid CommunicationStructure value [{}]", s).into()),
     }
+}
+
+#[allow(dead_code)]
+pub struct Coda {
+    pub header: Header,
+    pub old_balance: OldBalance,
+    pub movements: Vec<Movement>,
+    pub information: Vec<Information>,
+    pub free_communications: Vec<FreeCommunication>,
+}
+
+#[allow(dead_code)]
+pub struct Header {
+    pub creation_date: NaiveDate,
+    pub bank_id: String,
+    pub duplicate: bool,
+    pub file_reference: String,
+    pub name_addressee: String,
+    pub bic: String,
+    pub company_id: String,
+    pub reference: String,
+    pub related_reference: String,
+    pub version: u8,
+}
+
+#[allow(dead_code)]
+pub struct OldBalance {
+    pub account_structure: AccountStructure, // ': (slice(1, 2), str),
+    pub old_sequence: String,                // ': (slice(2, 5), str),
+    pub account_currency: String,            // ': (slice(5, 42), str),
+    pub old_balance_sign: Sign,
+    pub old_balance: u64,            // ': (slice(43, 58), _amount),
+    pub old_balance_date: NaiveDate, // ': (slice(58, 64), _date),
+    pub account_holder_name: String, // ': (slice(64, 90), _string),
+    pub account_description: String, // ': (slice(90, 125), _string),
+    pub coda_sequence: String,       // ': (slice(125, 128), str),
+}
+
+#[allow(dead_code)]
+pub struct Movement {
+    pub sequence: String,         //': (slice(2, 6), str),
+    pub detail_sequence: String,  //': (slice(6, 10), str),
+    pub bank_reference: String,   //': (slice(10, 31), str),
+    pub amount: u64,              //': (slice(31, 47), _amount),
+    pub value_date: NaiveDate,    //': (slice(47, 53), _date),
+    pub transaction_code: String, //': (slice(53, 61), str),
+    pub communication: String,    //': (slice(61, 115), str),
+    pub entry_date: NaiveDate,    //': (slice(115, 121), _date),
+    pub statement_number: String, //': (slice(121, 124), str),
+    // type 2
+    //pub _communication: String,     //': (slice(10, 63), str),
+    pub customer_reference: Option<String>, //': (slice(63, 98), _string),
+    pub counterparty_bic: Option<String>,   //': (slice(98, 109), _string),
+    pub r_transaction: Option<String>,      //': (slice(112, 113), _string),
+    pub r_reason: Option<String>,           //': (slice(113, 117), _string),
+    pub category_purpose: Option<String>,   //': (slice(117, 121), _string),
+    pub purpose: Option<String>,            //': (slice(121, 125), _string),
+    // type 3
+    pub counterparty_account: Option<String>, //': (slice(10, 47), _string),
+    pub counterparty_name: Option<String>,    //': (slice(47, 82), _string),
+}
+
+#[allow(dead_code)]
+pub struct Information {
+    pub sequence: String,         //': (slice(2, 6), str),
+    pub detail_sequence: String,  //': (slice(6, 10), str),
+    pub bank_reference: String,   //': (slice(10, 31), str),
+    pub transaction_code: String, //': (slice(31, 39), str),
+    pub communication_structure: CommunicationStructure,
+    pub communication: String, //': (slice(39, 113), str),
+}
+
+/*
+FREE_COMMUNICATION = {
+    'sequence': (slice(2, 6), str),
+    'detail_sequence': (slice(6, 10), str),
+    'text': (slice(32, 112), _string),
+    }
+*/
+
+#[allow(dead_code)]
+pub struct FreeCommunication {
+    pub sequence: String,        //': (slice(2, 6), str),
+    pub detail_sequence: String, //': (slice(6, 10), str),
+    pub text: String,            //': (slice(32, 112), str),
 }
 
 impl OldBalance {
@@ -83,20 +155,6 @@ impl OldBalance {
     }
 }
 
-#[allow(dead_code)]
-pub struct Header {
-    pub creation_date: NaiveDate,
-    pub bank_id: String,
-    pub duplicate: bool,
-    pub file_reference: String,
-    pub name_addressee: String,
-    pub bic: String,
-    pub company_id: String,
-    pub reference: String,
-    pub related_reference: String,
-    pub version: u8,
-}
-
 impl Header {
     pub fn parse(line: &str) -> Result<Header> {
         Ok(Header {
@@ -119,31 +177,6 @@ impl Header {
             version: parse_field(line, 127..128, parse_u8).chain_err(|| "Could not parse version")?,
         })
     }
-}
-
-#[allow(dead_code)]
-pub struct Movement {
-    pub sequence: String,         //': (slice(2, 6), str),
-    pub detail_sequence: String,  //': (slice(6, 10), str),
-    pub bank_reference: String,   //': (slice(10, 31), str),
-    pub amount: u64,              //': (slice(31, 47), _amount),
-    pub value_date: NaiveDate,    //': (slice(47, 53), _date),
-    pub transaction_code: String, //': (slice(53, 61), str),
-    pub communication: String,    //': (slice(61, 115), str),
-    pub entry_date: NaiveDate,    //': (slice(115, 121), _date),
-    pub statement_number: String, //': (slice(121, 124), str),
-    // type 2
-    //pub _communication: String,     //': (slice(10, 63), str),
-    pub customer_reference: Option<String>, //': (slice(63, 98), _string),
-    pub counterparty_bic: Option<String>,   //': (slice(98, 109), _string),
-    pub r_transaction: Option<String>,      //': (slice(112, 113), _string),
-    pub r_reason: Option<String>,           //': (slice(113, 117), _string),
-    pub category_purpose: Option<String>,   //': (slice(117, 121), _string),
-    pub purpose: Option<String>,            //': (slice(121, 125), _string),
-    // type 3
-    pub counterparty_account: Option<String>, //': (slice(10, 47), _string),
-    pub counterparty_name: Option<String>,    //': (slice(47, 82), _string),
-                                              // pub _communication: String,       //': (slice(82, 125), str),
 }
 
 impl Movement {
@@ -211,39 +244,6 @@ impl Movement {
     }
 }
 
-/*
-INFORMATION_COMMON = {
-    'sequence': (slice(2, 6), str),
-    'detail_sequence': (slice(6, 10), str),
-    }
-INFORMATION = {
-    '1': {
-        'bank_reference': (slice(10, 31), str),
-        'transaction_code': (slice(31, 39), str),
-        '_communication': (slice(39, 113), str),
-        },
-    '2': {
-        '_communication': (slice(10, 115), str),
-        },
-    '3': {
-        '_communication': (slice(10, 100), str),
-        },
-    }
-
-*/
-
-#[allow(dead_code)]
-pub struct Information {
-    pub sequence: String,         //': (slice(2, 6), str),
-    pub detail_sequence: String,  //': (slice(6, 10), str),
-    pub bank_reference: String,   //': (slice(10, 31), str),
-    pub transaction_code: String, //': (slice(31, 39), str),
-    pub communication_structure: CommunicationStructure,
-    pub communication: String, //': (slice(39, 113), str),
-                               // '_communication': (slice(10, 115), str),
-                               // '_communication': (slice(10, 100), str),
-}
-
 impl Information {
     fn parse_type1(line: &str) -> Result<Information> {
         Ok(Information {
@@ -278,12 +278,23 @@ impl Information {
     }
 }
 
-#[allow(dead_code)]
-pub struct Coda {
-    pub header: Header,
-    pub old_balance: OldBalance,
-    pub movements: Vec<Movement>,
-    pub information: Vec<Information>,
+impl FreeCommunication {
+    pub fn parse_line1(line: &str) -> Result<FreeCommunication> {
+        Ok(FreeCommunication {
+            sequence: parse_field(line, 2..6, parse_str).chain_err(|| "Could not parse sequence")?,
+            detail_sequence: parse_field(line, 6..10, parse_str)
+                .chain_err(|| "Could not parse detail_sequence")?,
+            text: parse_field(line, 32..112, parse_str_trim).chain_err(|| "Could not parse text")?,
+        })
+    }
+
+    pub fn parse_following(&mut self, line: &str) -> Result<()> {
+        let text =
+            parse_field(line, 32..112, parse_str_append).chain_err(|| "Could not parse text")?;
+        self.text.push_str(&text);
+
+        Ok(())
+    }
 }
 
 impl Coda {
@@ -310,6 +321,7 @@ impl Coda {
         let mut old_balance: Option<OldBalance> = None;
         let mut movements: Vec<Movement> = Vec::new();
         let mut informations: Vec<Information> = Vec::new();
+        let mut free_communications: Vec<FreeCommunication> = Vec::new();
         for line in cursor.lines() {
             let line = line.unwrap();
             match line.get(0..1) {
@@ -367,6 +379,22 @@ impl Coda {
                     }
                     _ => {}
                 },
+                Some("4") => match line.get(6..10) {
+                    Some("0000") => {
+                        let free_communication = Some(FreeCommunication::parse_line1(&line)
+                            .chain_err(|| -> Error {
+                                "Could not parse FreeCommunication".into()
+                            })?);
+                        free_communications.push(free_communication.unwrap());
+                    }
+                    _ => {
+                        let free_communication = free_communications.last_mut();
+                        let mut free_communication = free_communication.unwrap();
+                        free_communication
+                            .parse_following(&line)
+                            .chain_err(|| "Error parsing FreeCommunication following lines")?;
+                    }
+                },
                 _ => {}
             };
         }
@@ -377,6 +405,7 @@ impl Coda {
                     old_balance: old_balance,
                     movements: movements,
                     information: informations,
+                    free_communications: free_communications,
                 });
             }
         }
@@ -671,12 +700,11 @@ mod test_parse_movement {
 mod test_parse_freecommunication {
 
     use std::io::{self, BufRead};
-    // use chrono::NaiveDate;
 
     use coda::encoding::label::encoding_from_whatwg_label;
     use coda::encoding::DecoderTrap;
 
-    // use super::Movement;
+    use super::FreeCommunication;
 
     #[test]
     fn parse_freecommunication_windows1252() {
@@ -688,6 +716,88 @@ mod test_parse_freecommunication {
         assert_eq!(
             lines_iter.next(),
             Some(String::from("D\'INVESTISSEMENT N° 123"))
+        );
+    }
+
+    #[test]
+    fn parse_freecommunication_line1_valid() {
+        let line = "4 00010000                      LINE 1 FREE COMMUNICATION                                                      X               1";
+
+        let actual = FreeCommunication::parse_line1(line);
+
+        assert_eq!(actual.is_ok(), true, "FreeCommunication shoud be ok");
+        let actual = actual.unwrap();
+        assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
+        assert_eq!(
+            actual.detail_sequence,
+            "0000",
+            "detail_sequence should be '0000'"
+        );
+        assert_eq!(actual.text, "LINE 1 FREE COMMUNICATION                                                      X", "communication should be 'LINE 1 FREE COMMUNICATION                                                       '");
+    }
+
+    #[test]
+    fn parse_freecommunication_line1_trimvalid() {
+        let line = "4 00010000                      LINE 1 FREE COMMUNICATION                                                                      1";
+
+        let actual = FreeCommunication::parse_line1(line);
+
+        assert_eq!(actual.is_ok(), true, "FreeCommunication shoud be ok");
+        let actual = actual.unwrap();
+        assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
+        assert_eq!(
+            actual.detail_sequence,
+            "0000",
+            "detail_sequence should be '0000'"
+        );
+        assert_eq!(
+            actual.text,
+            "LINE 1 FREE COMMUNICATION",
+            "communication should be 'LINE 1 FREE COMMUNICATION'"
+        );
+    }
+
+    #[test]
+    fn parse_freecommunication_following_valid() {
+        let line1 = "4 00010000                      LINE 1 FREE COMMUNICATION                                                      X               1";
+        let line2 = "4 00010001                      LINE 2 FREE COMMUNICATION                                                      Y               1";
+
+        let actual = FreeCommunication::parse_line1(line1);
+        assert_eq!(actual.is_ok(), true, "FreeCommunication shoud be ok");
+        let mut actual = actual.unwrap();
+        let result = actual.parse_following(line2);
+
+        assert_eq!(result.is_ok(), true, "Result should be ok");
+        assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
+        assert_eq!(
+            actual.detail_sequence,
+            "0000",
+            "detail_sequence should be '0000'"
+        );
+        assert_eq!(actual.text, "LINE 1 FREE COMMUNICATION                                                      X\nLINE 2 FREE COMMUNICATION                                                      Y", "communication should be 'LINE 1 FREE COMMUNICATION                                                       '");
+    }
+
+    #[test]
+    fn parse_freecommunication_following_trim_valid() {
+        let line1 = "4 00010000                      LINE 1 FREE COMMUNICATION                                                                      1";
+        let line2 = "4 00010001                      LINE 2 FREE COMMUNICATION                                                                      1";
+
+        let actual = FreeCommunication::parse_line1(line1);
+        assert_eq!(actual.is_ok(), true, "FreeCommunication shoud be ok");
+        let mut actual = actual.unwrap();
+        let result = actual.parse_following(line2);
+
+        assert_eq!(result.is_ok(), true, "Result should be ok");
+        assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
+        assert_eq!(
+            actual.detail_sequence,
+            "0000",
+            "detail_sequence should be '0000'"
+        );
+        assert_eq!(
+            actual.text,
+            "LINE 1 FREE COMMUNICATION\nLINE 2 FREE COMMUNICATION",
+            "communication should be 'LINE 1 FREE COMMUNICATION\nLINE 2 FREE COMMUNICATION'"
         );
     }
 }

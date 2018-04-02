@@ -47,6 +47,16 @@ fn run() -> Result<()> {
         "information coda.information[0].commmunication=[{:?}]",
         coda.information[0].communication
     );
+
+    println!(
+        "free  coda.free_communications.len()=[{}]",
+        coda.free_communications.len()
+    );
+    println!(
+        "free coda.free_communications[0].text=[{:?}]",
+        coda.free_communications[0].text
+    );
+
     Ok(())
 }
 
