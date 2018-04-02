@@ -46,6 +46,10 @@ pub fn parse_u64(s: &str) -> Result<u64> {
     Ok(s.parse::<u64>().chain_err(|| "Could not parse u64")?)
 }
 
+pub fn parse_u32(s: &str) -> Result<u32> {
+    Ok(s.parse::<u32>().chain_err(|| "Could not parse u32")?)
+}
+
 pub fn parse_duplicate(s: &str) -> Result<bool> {
     match s {
         "D" => Ok(true),
@@ -140,6 +144,14 @@ mod test_parse_utils {
 
         assert_eq!(actual.is_ok(), true, "u64 '20000' should be ok");
         assert_eq!(actual.unwrap(), 20000, "u64 '20000' should be 20000");
+    }
+
+    #[test]
+    fn parse_u32_valid() {
+        let actual = parse_u32("200000");
+
+        assert_eq!(actual.is_ok(), true, "u32 '200000' should be ok");
+        assert_eq!(actual.unwrap(), 200000, "u32 '200000' should be 200000");
     }
 
     #[test]

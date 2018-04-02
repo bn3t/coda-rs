@@ -11,7 +11,7 @@ use coda::encoding::DecoderTrap;
 
 use errors::*;
 use utils::{parse_date, parse_duplicate, parse_field, parse_sign, parse_str, parse_str_append,
-            parse_str_trim, Sign, parse_u64, parse_u8};
+            parse_str_trim, Sign, parse_u32, parse_u64, parse_u8};
 
 #[derive(PartialEq, Debug)]
 pub enum AccountStructure {
@@ -53,6 +53,7 @@ pub struct Coda {
     pub information: Vec<Information>,
     pub free_communications: Vec<FreeCommunication>,
     pub new_balance: NewBalance,
+    pub trailer: Trailer,
 }
 
 #[derive(Debug)]
@@ -130,6 +131,34 @@ pub struct NewBalance {
     pub new_balance_sign: Sign,
     pub new_balance: u64,            //': (slice(41, 57), _amount),
     pub new_balance_date: NaiveDate, //': (slice(57, 63), _date),
+}
+
+/*
+TRAILER = {
+    'number_records': (slice(16, 22), int),
+    'total_debit': (slice(22, 37), _amount),
+    'total_credit': (slice(37, 52), _amount),
+    }
+
+*/
+#[derive(Debug)]
+pub struct Trailer {
+    pub number_records: u32, //': (slice(16, 22), int),
+    pub total_debit: u64,    //': (slice(22, 37), _amount),
+    pub total_credit: u64,   //': (slice(37, 52), _amount),
+}
+
+impl Trailer {
+    pub fn parse(line: &str) -> Result<Trailer> {
+        Ok(Trailer {
+            number_records: parse_field(line, 16..22, parse_u32)
+                .chain_err(|| "Could not parse old_balance")?,
+            total_debit: parse_field(line, 22..37, parse_u64)
+                .chain_err(|| "Could not parse old_balance")?,
+            total_credit: parse_field(line, 37..52, parse_u64)
+                .chain_err(|| "Could not parse old_balance")?,
+        })
+    }
 }
 
 impl OldBalance {
@@ -318,7 +347,6 @@ impl NewBalance {
 
 impl Coda {
     pub fn parse(coda_filename: &str, encoding_label: Option<String>) -> Result<Coda> {
-        println!("Parsing file: {}", coda_filename);
         let f =
             File::open(coda_filename).chain_err(|| format!("Unable to open {}", coda_filename))?;
 
@@ -339,6 +367,7 @@ impl Coda {
         let mut header: Option<Header> = None;
         let mut old_balance: Option<OldBalance> = None;
         let mut new_balance: Option<NewBalance> = None;
+        let mut trailer: Option<Trailer> = None;
         let mut movements: Vec<Movement> = Vec::new();
         let mut informations: Vec<Information> = Vec::new();
         let mut free_communications: Vec<FreeCommunication> = Vec::new();
@@ -419,11 +448,14 @@ impl Coda {
                     new_balance =
                         Some(NewBalance::parse(&line).chain_err(|| "Could not parse NewBalance")?);
                 }
+                Some("9") => {
+                    trailer = Some(Trailer::parse(&line).chain_err(|| "Could not parse Trailer")?);
+                }
                 _ => {}
             };
         }
         if header.is_some() && old_balance.is_some() && old_balance.is_some()
-            && new_balance.is_some()
+            && new_balance.is_some() && trailer.is_some()
         {
             Ok(Coda {
                 header: header.unwrap(),
@@ -432,6 +464,7 @@ impl Coda {
                 information: informations,
                 free_communications: free_communications,
                 new_balance: new_balance.unwrap(),
+                trailer: trailer.unwrap(),
             })
         } else {
             Err("Could not parse coda - Missing parts".into())
@@ -601,6 +634,7 @@ mod test_parse_oldbalance {
         assert_eq!(actual.is_ok(), false, "'4' should not be ok");
     }
 }
+
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod test_parse_newbalance {
@@ -639,7 +673,32 @@ mod test_parse_newbalance {
             "new_balance_date should be 07/12/2006"
         );
     }
+}
 
+#[cfg(test)]
+mod test_parse_trailer {
+    use super::Trailer;
+
+    #[test]
+    fn parse_newbalance_valid() {
+        let line = "9               000260000003085871600000012491168590                                                                           2";
+
+        let actual = Trailer::parse(line);
+
+        assert_eq!(actual.is_ok(), true, "Trailer shoud be ok");
+        let actual = actual.unwrap();
+        assert_eq!(actual.number_records, 260, "number_records should be '260'");
+        assert_eq!(
+            actual.total_debit,
+            3085871600,
+            "total_debit should be '3085871600'"
+        );
+        assert_eq!(
+            actual.total_credit,
+            12491168590,
+            "total_credit should be '12491168590'"
+        );
+    }
 }
 
 #[cfg(test)]

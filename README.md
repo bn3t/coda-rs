@@ -45,9 +45,10 @@ $ coda-rs --json -e latin1 FILE.CD2
 * Parse information record (3.3)
 * Parse free communication (4)
 * Parse new balance (8)
+* Parse trailer record (9)
 
 ### TODO
 
 * Generate JSON file
-* Parse trailer record (9)
 * Support account number and currency code (see 7.5 of spec)
+* Support bigdecimal

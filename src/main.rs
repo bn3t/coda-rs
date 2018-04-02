@@ -31,6 +31,7 @@ fn run() -> Result<()> {
 
     println!("free_communications=[{:?}]", coda.free_communications);
     println!("New balance: {:?}", coda.new_balance);
+    println!("Trailer: {:?}", coda.trailer);
 
     Ok(())
 }
