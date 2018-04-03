@@ -46,20 +46,20 @@ pub enum CommunicationStructure {
 fn parse_account(s: &str) -> Result<Account> {
     match s.get(0..1).unwrap() {
         "0" => Ok(Account::BelgianAccountNumber {
-            number: String::from(s.get(4..16).unwrap()),
+            number: String::from(s.get(4..16).unwrap().trim_right()),
             currency: String::from(s.get(17..20).unwrap()),
             country: String::from(s.get(21..23).unwrap()),
         }),
         "1" => Ok(Account::ForeignAccountNumber {
-            number: String::from(s.get(4..38).unwrap()),
+            number: String::from(s.get(4..38).unwrap().trim_right()),
             currency: String::from(s.get(38..41).unwrap()),
         }),
         "2" => Ok(Account::IBANBelgianAccountNumber {
-            number: String::from(s.get(4..35).unwrap()),
+            number: String::from(s.get(4..35).unwrap().trim_right()),
             currency: String::from(s.get(38..41).unwrap()),
         }),
         "3" => Ok(Account::IBANForeignAccountNumber {
-            number: String::from(s.get(4..38).unwrap()),
+            number: String::from(s.get(4..38).unwrap().trim_right()),
             currency: String::from(s.get(38..41).unwrap()),
         }),
         _ => Err(format!("Invalid AccountStructure value [{}]", s).into()),
@@ -195,9 +195,9 @@ impl OldBalance {
                 .chain_err(|| "Could not parse old_balance")?,
             old_balance_date: parse_field(line, 58..64, parse_date)
                 .chain_err(|| "Could not parse old_balance_date")?,
-            account_holder_name: parse_field(line, 64..90, parse_str)
+            account_holder_name: parse_field(line, 64..90, parse_str_trim)
                 .chain_err(|| "Could not parse account_holder_name")?,
-            account_description: parse_field(line, 90..125, parse_str)
+            account_description: parse_field(line, 90..125, parse_str_trim)
                 .chain_err(|| "Could not parse account_description")?,
             coda_sequence: parse_field(line, 125..128, parse_str)
                 .chain_err(|| "Could not parse coda_sequence")?,
@@ -215,14 +215,14 @@ impl Header {
                 .chain_err(|| "Could not parse duplicate")?,
             file_reference: parse_field(line, 24..34, parse_str)
                 .chain_err(|| "Could not parse file_reference")?,
-            name_addressee: parse_field(line, 34..60, parse_str)
+            name_addressee: parse_field(line, 34..60, parse_str_trim)
                 .chain_err(|| "Could not parse name_addressee")?,
-            bic: parse_field(line, 60..71, parse_str).chain_err(|| "Could not parse bic")?,
+            bic: parse_field(line, 60..71, parse_str_trim).chain_err(|| "Could not parse bic")?,
             company_id: parse_field(line, 71..82, parse_str)
                 .chain_err(|| "Could not parse company_id")?,
-            reference: parse_field(line, 88..104, parse_str)
+            reference: parse_field(line, 88..104, parse_str_trim)
                 .chain_err(|| "Could not parse reference")?,
-            related_reference: parse_field(line, 105..120, parse_str)
+            related_reference: parse_field(line, 105..120, parse_str_trim)
                 .chain_err(|| "Could not parse related_reference")?,
             version: parse_field(line, 127..128, parse_u8).chain_err(|| "Could not parse version")?,
         })
@@ -242,7 +242,7 @@ impl Movement {
                 .chain_err(|| "Could not parse value_date")?,
             transaction_code: parse_field(line, 53..61, parse_str)
                 .chain_err(|| "Could not parse transaction_code")?,
-            communication: parse_field(line, 61..115, parse_str)
+            communication: parse_field(line, 62..115, parse_str)
                 .chain_err(|| "Could not parse transaction_code")?,
             entry_date: parse_field(line, 115..121, parse_date)
                 .chain_err(|| "Could not parse entry_date")?,
@@ -260,34 +260,34 @@ impl Movement {
     }
 
     pub fn parse_type2(&mut self, line: &str) -> Result<()> {
-        self.customer_reference = Some(parse_field(line, 121..124, parse_str)
+        self.customer_reference = Some(parse_field(line, 121..124, parse_str_trim)
             .chain_err(|| "Could not parse customer_reference")?);
-        self.counterparty_bic = Some(parse_field(line, 98..109, parse_str)
+        self.counterparty_bic = Some(parse_field(line, 98..109, parse_str_trim)
             .chain_err(|| "Could not parse counterparty_bic")?);
-        self.r_transaction = Some(parse_field(line, 112..113, parse_str)
+        self.r_transaction = Some(parse_field(line, 112..113, parse_str_trim)
             .chain_err(|| "Could not parse r_transaction")?);
-        self.r_reason =
-            Some(parse_field(line, 113..117, parse_str).chain_err(|| "Could not parse r_reason")?);
-        self.category_purpose = Some(parse_field(line, 117..121, parse_str)
+        self.r_reason = Some(parse_field(line, 113..117, parse_str_trim)
+            .chain_err(|| "Could not parse r_reason")?);
+        self.category_purpose = Some(parse_field(line, 117..121, parse_str_trim)
             .chain_err(|| "Could not parse category_purpose")?);
-        self.purpose =
-            Some(parse_field(line, 121..125, parse_str).chain_err(|| "Could not parse purpose")?);
+        self.purpose = Some(parse_field(line, 121..125, parse_str_trim)
+            .chain_err(|| "Could not parse purpose")?);
 
-        let communication =
-            parse_field(line, 10..63, parse_str).chain_err(|| "Could not parse communication")?;
+        let communication = parse_field(line, 10..63, parse_str_append)
+            .chain_err(|| "Could not parse communication")?;
         self.communication.push_str(&communication);
 
         Ok(())
     }
 
     pub fn parse_type3(&mut self, line: &str) -> Result<()> {
-        self.counterparty_name = Some(parse_field(line, 10..47, parse_str)
+        self.counterparty_name = Some(parse_field(line, 10..47, parse_str_trim)
             .chain_err(|| "Could not parse counterparty_name")?);
-        self.counterparty_account = Some(parse_field(line, 47..82, parse_str)
+        self.counterparty_account = Some(parse_field(line, 47..82, parse_str_trim)
             .chain_err(|| "Could not parse counterparty_account")?);
 
-        let communication =
-            parse_field(line, 82..125, parse_str).chain_err(|| "Could not parse communication")?;
+        let communication = parse_field(line, 82..125, parse_str_append)
+            .chain_err(|| "Could not parse communication")?;
         self.communication.push_str(&communication);
 
         Ok(())
@@ -306,22 +306,22 @@ impl Information {
                 .chain_err(|| "Could not parse detail_sequence")?,
             communication_structure: parse_field(line, 39..40, parse_communicationstructure)
                 .chain_err(|| "Could not parse communication_structure")?,
-            communication: parse_field(line, 40..113, parse_str)
+            communication: parse_field(line, 40..113, parse_str_trim)
                 .chain_err(|| "Could not parse detail_sequence")?,
         })
     }
 
     pub fn parse_type2(&mut self, line: &str) -> Result<()> {
-        let communication =
-            parse_field(line, 10..115, parse_str).chain_err(|| "Could not parse communication")?;
+        let communication = parse_field(line, 10..115, parse_str_append)
+            .chain_err(|| "Could not parse communication")?;
         self.communication.push_str(&communication);
 
         Ok(())
     }
 
     pub fn parse_type3(&mut self, line: &str) -> Result<()> {
-        let communication =
-            parse_field(line, 10..100, parse_str).chain_err(|| "Could not parse communication")?;
+        let communication = parse_field(line, 10..100, parse_str_append)
+            .chain_err(|| "Could not parse communication")?;
         self.communication.push_str(&communication);
 
         Ok(())
@@ -519,24 +519,20 @@ mod test_parse_header {
         );
         assert_eq!(
             actual.name_addressee,
-            "Testgebruiker21           ",
-            "address should be 'Testgebruiker21           '"
+            "Testgebruiker21",
+            "address should be 'Testgebruiker21'"
         );
-        assert_eq!(actual.bic, "KREDBEBB   ", "bic should be 'KREDBEBB   '");
+        assert_eq!(actual.bic, "KREDBEBB", "bic should be 'KREDBEBB'");
         assert_eq!(
             actual.company_id,
             "00630366277",
             "company_id should be '00630366277'"
         );
-        assert_eq!(
-            actual.reference,
-            "                ",
-            "reference should be '                '"
-        );
+        assert_eq!(actual.reference, "", "reference should be ''");
         assert_eq!(
             actual.related_reference,
-            "               ",
-            "related_reference should be '               '"
+            "",
+            "related_reference should be ''"
         );
         assert_eq!(actual.version, 2, "version should be '2'");
     }
@@ -569,11 +565,6 @@ mod test_parse_oldbalance {
             },
             "account_structure should be BelgianAccountNumber"
         );
-        // assert_eq!(
-        //     actual.account_currency,
-        //     "435000000080 EUR0BE                  ",
-        //     "account_currency should be '435000000080 EUR0BE                  '"
-        // );
         assert_eq!(
             actual.old_balance_sign,
             Sign::Credit,
@@ -587,13 +578,13 @@ mod test_parse_oldbalance {
         );
         assert_eq!(
             actual.account_holder_name,
-            "Testgebruiker21           ",
-            "account_currency should be 'Testgebruiker21           '"
+            "Testgebruiker21",
+            "account_currency should be 'Testgebruiker21'"
         );
         assert_eq!(
             actual.account_description,
-            "KBC-Bedrijfsrekening               ",
-            "account_currency should be 'KBC-Bedrijfsrekening               '"
+            "KBC-Bedrijfsrekening",
+            "account_currency should be 'KBC-Bedrijfsrekening'"
         );
         assert_eq!(
             actual.coda_sequence,
@@ -777,7 +768,7 @@ mod test_parse_movement {
         );
         assert_eq!(
             actual.communication,
-            "0BORDEREAU DE DECOMPTE AVANCES    015 NUMERO D\'OPERATI"
+            "BORDEREAU DE DECOMPTE AVANCES    015 NUMERO D\'OPERATI"
         );
         assert_eq!(actual.entry_date, NaiveDate::from_ymd(2006, 12, 6));
         assert_eq!(actual.statement_number, "001");
@@ -800,32 +791,31 @@ mod test_parse_movement {
         );
         assert_eq!(
             actual.customer_reference.unwrap(),
-            "   ",
-            "customer_reference should be '"
+            "",
+            "customer_reference should be ''"
         );
         assert_eq!(
             actual.counterparty_bic.unwrap(),
-            "           ",
-            "counterparty_bic should be '           '"
+            "",
+            "counterparty_bic should be ''"
         );
         assert_eq!(
             actual.r_transaction.unwrap(),
-            " ",
-            "r_transaction should be ' '"
+            "",
+            "r_transaction should be ''"
         );
-        assert_eq!(
-            actual.r_reason.unwrap(),
-            "    ",
-            "r_reason should be '    '"
-        );
+        assert_eq!(actual.r_reason.unwrap(), "", "r_reason should be ''");
         assert_eq!(
             actual.category_purpose.unwrap(),
-            "    ",
-            "category_purpose should be '    '"
+            "",
+            "category_purpose should be ''"
         );
-        assert_eq!(actual.purpose.unwrap(), "    ", "purpose should be '    '");
+        assert_eq!(actual.purpose.unwrap(), "", "purpose should be ''");
 
-        assert_eq!(actual.communication, "0BORDEREAU DE DECOMPTE AVANCES    015 NUMERO D\'OPERATION 495953                                            ");
+        assert_eq!(
+            actual.communication,
+            "BORDEREAU DE DECOMPTE AVANCES    015 NUMERO D\'OPERATI\nON 495953"
+        );
     }
 
     #[test]
@@ -841,16 +831,19 @@ mod test_parse_movement {
 
         assert_eq!(
             actual.counterparty_name.unwrap(),
-            "068226750863                         ",
-            "counterparty_name should be '068226750863                         '"
+            "068226750863",
+            "counterparty_name should be '068226750863'"
         );
         assert_eq!(
             actual.counterparty_account.unwrap(),
-            "T.P.F.  S.A.                       ",
-            "counterparty_account should be 'T.P.F.  S.A.                       '"
+            "T.P.F.  S.A.",
+            "counterparty_account should be 'T.P.F.  S.A.'"
         );
 
-        assert_eq!(actual.communication, "0BORDEREAU DE DECOMPTE AVANCES    015 NUMERO D\'OPERATI                                           ");
+        assert_eq!(
+            actual.communication,
+            "BORDEREAU DE DECOMPTE AVANCES    015 NUMERO D\'OPERATI\n"
+        );
     }
 }
 
@@ -993,8 +986,8 @@ mod test_parse_information {
         );
         assert_eq!(
             actual.communication,
-            "001TPF CONSULTING                                                        ",
-            "communication should be '001TPF CONSULTING                                                        '"
+            "001TPF CONSULTING",
+            "communication should be ''"
         );
     }
 
@@ -1008,7 +1001,7 @@ mod test_parse_information {
         let result = actual.parse_type2(line2);
 
         assert_eq!(result.is_ok(), true);
-        assert_eq!(actual.communication, "001TPF CONSULTING                                                        AV. DE HAVESKERCKE  46             1190   BRUXELLES                                                      ", "communication should be '1001TPF CONSULTING                                                        AV. DE HAVESKERCKE  46             1190   BRUXELLES                                                      '");
+        assert_eq!(actual.communication, "001TPF CONSULTING\nAV. DE HAVESKERCKE  46             1190   BRUXELLES", "communication should be '1001TPF CONSULTING                                                        AV. DE HAVESKERCKE  46             1190   BRUXELLES                                                      '");
     }
 
     #[test]
@@ -1021,7 +1014,11 @@ mod test_parse_information {
         let result = actual.parse_type3(line3);
 
         assert_eq!(result.is_ok(), true);
-        assert_eq!(actual.communication, "001TPF CONSULTING                                                        THIRD LINE                                                                                ", "communication should be '1001TPF CONSULTING                                                        THIRD LINE                                                                                '");
+        assert_eq!(
+            actual.communication,
+            "001TPF CONSULTING\nTHIRD LINE",
+            "communication should be '001TPF CONSULTING\nTHIRD LINE'"
+        );
     }
 
     #[test]
