@@ -17,11 +17,24 @@ use utils::{parse_date, parse_duplicate, parse_field, parse_sign, parse_str, par
             parse_str_trim, Sign, parse_u32, parse_u64, parse_u8};
 
 #[derive(PartialEq, Debug, Serialize)]
-pub enum AccountStructure {
-    BelgianAccountNumber,
-    ForeignAccountNumber,
-    IBANBelgianAccountNumber,
-    IBANForeignAccountNumber,
+pub enum Account {
+    BelgianAccountNumber {
+        number: String,
+        currency: String,
+        country: String,
+    },
+    ForeignAccountNumber {
+        number: String,
+        currency: String,
+    },
+    IBANBelgianAccountNumber {
+        number: String,
+        currency: String,
+    },
+    IBANForeignAccountNumber {
+        number: String,
+        currency: String,
+    },
 }
 
 #[derive(PartialEq, Debug, Serialize)]
@@ -30,12 +43,25 @@ pub enum CommunicationStructure {
     Unstructured,
 }
 
-fn parse_accountstructure(s: &str) -> Result<AccountStructure> {
-    match s {
-        "0" => Ok(AccountStructure::BelgianAccountNumber),
-        "1" => Ok(AccountStructure::ForeignAccountNumber),
-        "2" => Ok(AccountStructure::IBANBelgianAccountNumber),
-        "3" => Ok(AccountStructure::IBANForeignAccountNumber),
+fn parse_account(s: &str) -> Result<Account> {
+    match s.get(0..1).unwrap() {
+        "0" => Ok(Account::BelgianAccountNumber {
+            number: String::from(s.get(4..16).unwrap()),
+            currency: String::from(s.get(17..20).unwrap()),
+            country: String::from(s.get(21..23).unwrap()),
+        }),
+        "1" => Ok(Account::ForeignAccountNumber {
+            number: String::from(s.get(4..38).unwrap()),
+            currency: String::from(s.get(38..41).unwrap()),
+        }),
+        "2" => Ok(Account::IBANBelgianAccountNumber {
+            number: String::from(s.get(4..35).unwrap()),
+            currency: String::from(s.get(38..41).unwrap()),
+        }),
+        "3" => Ok(Account::IBANForeignAccountNumber {
+            number: String::from(s.get(4..38).unwrap()),
+            currency: String::from(s.get(38..41).unwrap()),
+        }),
         _ => Err(format!("Invalid AccountStructure value [{}]", s).into()),
     }
 }
@@ -75,9 +101,9 @@ pub struct Header {
 
 #[derive(Debug, Serialize)]
 pub struct OldBalance {
-    pub account_structure: AccountStructure, // ': (slice(1, 2), str),
-    pub old_sequence: String,                // ': (slice(2, 5), str),
-    pub account_currency: String,            // ': (slice(5, 42), str),
+    pub account: Account,     // ': (slice(1, 2), str),
+    pub old_sequence: String, // ': (slice(2, 5), str),
+    // pub account_currency: String, // ': (slice(5, 42), str),
     pub old_balance_sign: Sign,
     pub old_balance: u64, // ': (slice(43, 58), _amount),
     #[serde(with = "date_serde")] pub old_balance_date: NaiveDate, // ': (slice(58, 64), _date),
@@ -129,21 +155,13 @@ pub struct FreeCommunication {
 
 #[derive(Debug, Serialize)]
 pub struct NewBalance {
-    pub new_sequence: String,     //': (slice(1, 4), str),
-    pub account_currency: String, //': (slice(4, 41), str),
+    pub new_sequence: String, //': (slice(1, 4), str),
+    // We don't store the account coming from the new balance
     pub new_balance_sign: Sign,
     pub new_balance: u64, //': (slice(41, 57), _amount),
     #[serde(with = "date_serde")] pub new_balance_date: NaiveDate, //': (slice(57, 63), _date),
 }
 
-/*
-TRAILER = {
-    'number_records': (slice(16, 22), int),
-    'total_debit': (slice(22, 37), _amount),
-    'total_credit': (slice(37, 52), _amount),
-    }
-
-*/
 #[derive(Debug, Serialize)]
 pub struct Trailer {
     pub number_records: u32, //': (slice(16, 22), int),
@@ -167,12 +185,10 @@ impl Trailer {
 impl OldBalance {
     pub fn parse(line: &str) -> Result<OldBalance> {
         Ok(OldBalance {
-            account_structure: parse_field(line, 1..2, parse_accountstructure)
+            account: parse_field(line, 1..42, parse_account)
                 .chain_err(|| "Could not parse account_structure")?,
             old_sequence: parse_field(line, 2..5, parse_str)
                 .chain_err(|| "Could not parse old_sequence")?,
-            account_currency: parse_field(line, 5..42, parse_str)
-                .chain_err(|| "Could not parse account_currency")?,
             old_balance_sign: parse_field(line, 42..43, parse_sign)
                 .chain_err(|| "Could not parse old_balance_sign")?,
             old_balance: parse_field(line, 43..58, parse_u64)
@@ -336,8 +352,6 @@ impl NewBalance {
         Ok(NewBalance {
             new_sequence: parse_field(line, 1..4, parse_str)
                 .chain_err(|| "Could not parse new_sequence")?,
-            account_currency: parse_field(line, 4..41, parse_str)
-                .chain_err(|| "Could not parse account_currency")?,
             new_balance_sign: parse_field(line, 42..43, parse_sign)
                 .chain_err(|| "Could not parse old_balance_sign")?,
             new_balance: parse_field(line, 41..57, parse_u64)
@@ -535,8 +549,7 @@ mod test_parse_oldbalance {
 
     use utils::Sign;
     use super::OldBalance;
-    use super::AccountStructure;
-    use super::parse_accountstructure;
+    use super::Account;
 
     #[test]
     fn parse_oldbalance_valid() {
@@ -548,15 +561,19 @@ mod test_parse_oldbalance {
         let actual = actual.unwrap();
         assert_eq!(actual.old_sequence, "001", "old_sequence should be '001'");
         assert_eq!(
-            actual.account_structure,
-            AccountStructure::BelgianAccountNumber,
+            actual.account,
+            Account::BelgianAccountNumber {
+                number: String::from("435000000080"),
+                currency: String::from("EUR"),
+                country: String::from("BE"),
+            },
             "account_structure should be BelgianAccountNumber"
         );
-        assert_eq!(
-            actual.account_currency,
-            "435000000080 EUR0BE                  ",
-            "account_currency should be '435000000080 EUR0BE                  '"
-        );
+        // assert_eq!(
+        //     actual.account_currency,
+        //     "435000000080 EUR0BE                  ",
+        //     "account_currency should be '435000000080 EUR0BE                  '"
+        // );
         assert_eq!(
             actual.old_balance_sign,
             Sign::Credit,
@@ -584,54 +601,74 @@ mod test_parse_oldbalance {
             "account_currency should be '001'"
         );
     }
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod test_parse_account {
+    use super::Account;
+    use super::parse_account;
 
     #[test]
-    fn parse_accountstructure_valid_BelgianAccountNumber() {
-        let actual = parse_accountstructure("0");
+    fn parse_account_valid_BelgianAccountNumber() {
+        let actual = parse_account("0xxx435000000080 EUR0BE                  ");
         assert_eq!(actual.is_ok(), true, "'0' should be ok");
         assert_eq!(
             actual.unwrap(),
-            AccountStructure::BelgianAccountNumber,
+            Account::BelgianAccountNumber {
+                number: String::from("435000000080"),
+                currency: String::from("EUR"),
+                country: String::from("BE"),
+            },
             "'0' should be BelgianAccountNumber"
         );
     }
 
     #[test]
-    fn parse_accountstructure_valid_ForeignAccountNumber() {
-        let actual = parse_accountstructure("1");
+    fn parse_account_valid_ForeignAccountNumber() {
+        let actual = parse_account("1xxx1234567890123456789012345678901234EUR");
         assert_eq!(actual.is_ok(), true, "'1' should be ok");
         assert_eq!(
             actual.unwrap(),
-            AccountStructure::ForeignAccountNumber,
+            Account::ForeignAccountNumber {
+                number: String::from("1234567890123456789012345678901234"),
+                currency: String::from("EUR"),
+            },
             "'0' should be ForeignAccountNumber"
         );
     }
 
     #[test]
-    fn parse_accountstructure_valid_IBANBelgianAccountNumber() {
-        let actual = parse_accountstructure("2");
+    fn parse_account_valid_IBANBelgianAccountNumber() {
+        let actual = parse_account("2xxx1234567890123456789012345678901xxxEUR");
         assert_eq!(actual.is_ok(), true, "'2' should be ok");
         assert_eq!(
             actual.unwrap(),
-            AccountStructure::IBANBelgianAccountNumber,
+            Account::IBANBelgianAccountNumber {
+                number: String::from("1234567890123456789012345678901"),
+                currency: String::from("EUR"),
+            },
             "'0' should be IBANBelgianAccountNumber"
         );
     }
 
     #[test]
-    fn parse_accountstructure_valid_IBANForeignAccountNumber() {
-        let actual = parse_accountstructure("3");
+    fn parse_account_valid_IBANForeignAccountNumber() {
+        let actual = parse_account("3xxx1234567890123456789012345678901234EUR");
         assert_eq!(actual.is_ok(), true, "'3' should be ok");
         assert_eq!(
             actual.unwrap(),
-            AccountStructure::IBANForeignAccountNumber,
-            "'0' should be IBANForeignAccountNumber"
+            Account::IBANForeignAccountNumber {
+                number: String::from("1234567890123456789012345678901234"),
+                currency: String::from("EUR"),
+            },
+            "'3' should be IBANForeignAccountNumber"
         );
     }
 
     #[test]
     fn parse_accountstructure_valid_invalid() {
-        let actual = parse_accountstructure("4");
+        let actual = parse_account("4BLAH");
         assert_eq!(actual.is_ok(), false, "'4' should not be ok");
     }
 }
@@ -653,11 +690,6 @@ mod test_parse_newbalance {
         assert_eq!(actual.is_ok(), true, "NewBalance shoud be ok");
         let actual = actual.unwrap();
         assert_eq!(actual.new_sequence, "001", "old_sequence should be '001'");
-        assert_eq!(
-            actual.account_currency,
-            "435000000080 EUR0BE                  ",
-            "account_currency should be '435000000080 EUR0BE                  '"
-        );
         assert_eq!(
             actual.new_balance_sign,
             Sign::Credit,

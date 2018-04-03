@@ -59,9 +59,11 @@ mod test_json {
                 version: 1,
             },
             old_balance: OldBalance {
-                account_structure: AccountStructure::IBANBelgianAccountNumber,
+                account: Account::IBANBelgianAccountNumber {
+                    number: String::from("BE3333"),
+                    currency: String::from("EUR"),
+                },
                 old_sequence: String::from("old_sequence"),
-                account_currency: String::from("account_currency"),
                 old_balance_sign: Sign::Credit,
                 old_balance: 100000,
                 old_balance_date: NaiveDate::from_ymd(2018, 4, 1),
@@ -74,7 +76,6 @@ mod test_json {
             free_communications: Vec::new(),
             new_balance: NewBalance {
                 new_sequence: String::from("new_sequence"),
-                account_currency: String::from("account_currency"),
                 new_balance_sign: Sign::Credit,
                 new_balance: 200000,
                 new_balance_date: NaiveDate::from_ymd(2018, 4, 3),
