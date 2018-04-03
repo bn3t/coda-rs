@@ -48,8 +48,15 @@ $ coda-rs --json -e latin1 FILE.CD2
 * Parse trailer record (9)
 * Generate JSON file
 * Support account number and currency code (see 7.5 of spec)
+* Trim text
 
 ### TODO
 
 * Support bigdecimal
-* Trim text
+* Support Structured/Unstructured communication
+* Load multiple files
+* JSON in array
+* User friendly : List headers / oldbalance / newbalance
+* List movements
+* Create db (sqllite?)
+* Handle globalisation
