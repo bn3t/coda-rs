@@ -242,7 +242,7 @@ impl Movement {
                 .chain_err(|| "Could not parse value_date")?,
             transaction_code: parse_field(line, 53..61, parse_str)
                 .chain_err(|| "Could not parse transaction_code")?,
-            communication: parse_field(line, 62..115, parse_str)
+            communication: parse_field(line, 62..115, parse_str_trim)
                 .chain_err(|| "Could not parse transaction_code")?,
             entry_date: parse_field(line, 115..121, parse_date)
                 .chain_err(|| "Could not parse entry_date")?,
