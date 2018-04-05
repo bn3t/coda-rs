@@ -14,7 +14,7 @@ use json::date_serde;
 
 use errors::*;
 use utils::{parse_date, parse_duplicate, parse_field, parse_sign, parse_str, parse_str_append,
-            parse_str_trim, Sign, parse_u32, parse_u64, parse_u8};
+            parse_str_trim, Sign, StringUtils, parse_u32, parse_u64, parse_u8};
 
 #[derive(PartialEq, Debug, Serialize)]
 pub enum Account {
@@ -363,13 +363,11 @@ impl NewBalance {
 }
 
 impl Coda {
-    pub fn parse(coda_filename: &str, encoding_label: Option<String>) -> Result<Coda> {
+    pub fn parse(coda_filename: &str, encoding_label: &str) -> Result<Coda> {
         let f =
             File::open(coda_filename).chain_err(|| format!("Unable to open {}", coda_filename))?;
 
-        let encoding = encoding_label
-            .and_then(|el| encoding_from_whatwg_label(&el))
-            .unwrap_or(encoding_from_whatwg_label("utf-8").unwrap());
+        let encoding = encoding_from_whatwg_label(encoding_label).unwrap();
 
         let mut reader = BufReader::new(f);
         let mut buf = Vec::new();
@@ -388,31 +386,33 @@ impl Coda {
         let mut movements: Vec<Movement> = Vec::new();
         let mut informations: Vec<Information> = Vec::new();
         let mut free_communications: Vec<FreeCommunication> = Vec::new();
-        for line in cursor.lines() {
+        for (num, line) in cursor.lines().enumerate() {
             let line = line.unwrap();
-            match line.get(0..1) {
-                Some("0") => {
+            match line.get_range(0..1).as_str() {
+                "0" => {
                     header = Some(Header::parse(&line)
                         .chain_err(|| -> Error { "Could not parse header".into() })?);
                 }
-                Some("1") => {
+                "1" => {
                     old_balance = Some(OldBalance::parse(&line)
                         .chain_err(|| -> Error { "Could not parse oldbalance".into() })?)
                 }
-                Some("2") => match line.get(1..2) {
-                    Some("1") => {
-                        let movement = Some(Movement::parse_type1(&line)
-                            .chain_err(|| -> Error { "Could not parse Movement".into() })?);
+                "2" => match line.get_range(1..2).as_str() {
+                    "1" => {
+                        let movement =
+                            Some(Movement::parse_type1(&line).chain_err(|| -> Error {
+                                format!("Could not parse Movement (line {})", num + 1).into()
+                            })?);
                         movements.push(movement.unwrap());
                     }
-                    Some("2") => {
+                    "2" => {
                         let movement = movements.last_mut();
                         let mut movement = movement.unwrap();
                         movement
                             .parse_type2(&line)
                             .chain_err(|| "Error parsing movement type 2")?;
                     }
-                    Some("3") => {
+                    "3" => {
                         let movement = movements.last_mut();
                         let mut movement = movement.unwrap();
                         movement
@@ -421,20 +421,20 @@ impl Coda {
                     }
                     _ => {}
                 },
-                Some("3") => match line.get(1..2) {
-                    Some("1") => {
+                "3" => match line.get_range(1..2).as_str() {
+                    "1" => {
                         let information = Some(Information::parse_type1(&line)
                             .chain_err(|| -> Error { "Could not parse Information".into() })?);
                         informations.push(information.unwrap());
                     }
-                    Some("2") => {
+                    "2" => {
                         let information = informations.last_mut();
                         let mut information = information.unwrap();
                         information
                             .parse_type2(&line)
                             .chain_err(|| "Error parsing information type 2")?;
                     }
-                    Some("3") => {
+                    "3" => {
                         let information = informations.last_mut();
                         let mut information = information.unwrap();
                         information
@@ -443,8 +443,8 @@ impl Coda {
                     }
                     _ => {}
                 },
-                Some("4") => match line.get(6..10) {
-                    Some("0000") => {
+                "4" => match line.get_range(6..10).as_str() {
+                    "0000" => {
                         let free_communication = Some(FreeCommunication::parse_line1(&line)
                             .chain_err(|| -> Error {
                                 "Could not parse FreeCommunication".into()
@@ -452,18 +452,17 @@ impl Coda {
                         free_communications.push(free_communication.unwrap());
                     }
                     _ => {
-                        let free_communication = free_communications.last_mut();
-                        let mut free_communication = free_communication.unwrap();
+                        let free_communication = free_communications.last_mut().unwrap();
                         free_communication
                             .parse_following(&line)
                             .chain_err(|| "Error parsing FreeCommunication following lines")?;
                     }
                 },
-                Some("8") => {
+                "8" => {
                     new_balance =
                         Some(NewBalance::parse(&line).chain_err(|| "Could not parse NewBalance")?);
                 }
-                Some("9") => {
+                "9" => {
                     trailer = Some(Trailer::parse(&line).chain_err(|| "Could not parse Trailer")?);
                 }
                 _ => {}
@@ -772,6 +771,48 @@ mod test_parse_movement {
         );
         assert_eq!(actual.entry_date, NaiveDate::from_ymd(2006, 12, 6));
         assert_eq!(actual.statement_number, "001");
+    }
+
+    #[test]
+    fn parse_movement_type1_other_valid() {
+        let line = "2100010000080072N026408        1000000002400000260218001030000Rénumération                                         26021801001 0";
+
+        let actual = Movement::parse_type1(line);
+
+        assert_eq!(actual.is_ok(), true, "Movement shoud be ok");
+        // let actual = actual.unwrap();
+        // assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
+        // assert_eq!(
+        //     actual.detail_sequence,
+        //     "0000",
+        //     "detail_sequence should be '0000'"
+        // );
+        // assert_eq!(
+        //     actual.bank_reference,
+        //     "EPIB00048 AWIUBTKAPUO",
+        //     "bank_reference should be 'EPIB00048 AWIUBTKAPUO'"
+        // );
+        // assert_eq!(
+        //     actual.amount,
+        //     1000000002578250,
+        //     "amount should be '1000000002578250'"
+        // );
+        // assert_eq!(
+        //     actual.value_date,
+        //     NaiveDate::from_ymd(2006, 12, 6),
+        //     "value_date should be '06/12/2006'"
+        // );
+        // assert_eq!(
+        //     actual.transaction_code,
+        //     "00799000",
+        //     "bank_reference should be '00799000'"
+        // );
+        // assert_eq!(
+        //     actual.communication,
+        //     "BORDEREAU DE DECOMPTE AVANCES    015 NUMERO D\'OPERATI"
+        // );
+        // assert_eq!(actual.entry_date, NaiveDate::from_ymd(2006, 12, 6));
+        // assert_eq!(actual.statement_number, "001");
     }
 
     #[test]
