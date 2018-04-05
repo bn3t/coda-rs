@@ -63,10 +63,45 @@ pub fn parse_field<T>(
     range: Range<usize>,
     convert: fn(s: &str) -> Result<T>,
 ) -> Result<T> {
-    if let Some(part) = line.get(range) {
-        convert(part)
-    } else {
-        Err("Could not parse field".into())
+    Ok(convert(line.to_string().get_range(range).as_str()).chain_err(|| "Could not parse field")?)
+}
+
+pub trait StringUtils {
+    fn get_range(&self, range: Range<usize>) -> Self;
+}
+
+impl StringUtils for String {
+    fn get_range(&self, range: Range<usize>) -> Self {
+        let result: String = self.chars()
+            .skip(range.start)
+            .take(range.end - range.start)
+            .collect();
+        result
+    }
+}
+
+#[cfg(test)]
+mod test_substring {
+    use super::*;
+
+    #[test]
+    fn substring_0_to_3() {
+        assert_eq!("012345678901234567890".to_string().get_range(0..3), "012");
+    }
+
+    #[test]
+    fn substring_5_to_10() {
+        assert_eq!(
+            "012345678901234567890".to_string().get_range(5..10),
+            "56789"
+        );
+    }
+    #[test]
+    fn substring_5_to_10_multibytes() {
+        assert_eq!(
+            "01é345678901234567890".to_string().get_range(5..10),
+            "56789"
+        );
     }
 }
 

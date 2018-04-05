@@ -32,7 +32,7 @@ pub mod date_serde {
 }
 
 pub fn to_json(coda: &Coda) -> Result<String> {
-    Ok(serde_json::to_string_pretty(&coda).chain_err(|| "Unable to generate json file")?)
+    Ok(serde_json::to_string_pretty(coda).chain_err(|| "Unable to generate json file")?)
 }
 
 #[cfg(test)]
