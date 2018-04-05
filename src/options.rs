@@ -3,10 +3,10 @@ extern crate argparse;
 use std::io::{stderr, stdout};
 use std::result::Result;
 
-use self::argparse::{ArgumentParser, Print, Store, StoreOption, StoreTrue};
+use self::argparse::{ArgumentParser, List, Print, StoreOption, StoreTrue};
 
 pub struct Options {
-    pub coda_filename: String,
+    pub coda_filenames: Vec<String>,
     pub json: bool,
     pub debug: bool,
     pub encoding_label: Option<String>,
@@ -15,7 +15,7 @@ pub struct Options {
 impl Options {
     pub fn parse_options(args: Vec<String>) -> Result<Options, i32> {
         let mut options = Options {
-            coda_filename: String::new(),
+            coda_filenames: vec![],
             json: false,
             debug: false,
             encoding_label: None,
@@ -38,8 +38,8 @@ impl Options {
                 StoreOption,
                 "Encoding for reading, use a whatwg label - See https://encoding.spec.whatwg.org/#concept-encoding-get (default to utf-8)",
             );
-            ap.refer(&mut options.coda_filename)
-                .add_argument("coda", Store, "Coda file to parse")
+            ap.refer(&mut options.coda_filenames)
+                .add_argument("coda_files", List, "List of Coda files to parse")
                 .required();
             ap.add_option(
                 &["-v", "--version"],
@@ -82,14 +82,19 @@ mod test_options {
         let args = vec![
             String::from("coda-rs"),
             String::from("-j"),
-            String::from("coda_file.txt"),
             String::from("-e"),
             String::from("windows-1252"),
+            String::from("coda_file1.txt"),
+            String::from("coda_file2.txt"),
+            String::from("coda_file3.txt"),
         ];
         let options = Options::parse_options(args);
         assert_eq!(options.is_ok(), true, "Returned options should be Ok");
         let options = options.unwrap();
-        assert_eq!(options.coda_filename, "coda_file.txt");
+        assert_eq!(
+            options.coda_filenames,
+            vec!["coda_file1.txt", "coda_file2.txt", "coda_file3.txt"]
+        );
         assert_eq!(options.json, true);
         assert_eq!(options.encoding_label.is_some(), true);
         assert_eq!(options.encoding_label.unwrap(), "windows-1252");
