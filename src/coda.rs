@@ -487,6 +487,25 @@ impl Coda {
 }
 
 #[cfg(test)]
+mod test_parse_coda {
+    use super::*;
+
+    #[test]
+    fn parse_coda_valid() {
+        let coda = Coda::parse("test-data/CODA.txt", "latin1");
+
+        assert_eq!(coda.is_ok(), true, "CODA.txt should be ok");
+    }
+
+    #[test]
+    fn parse_coda_invalid() {
+        let coda = Coda::parse("test-data/CODA-bad.txt", "latin1");
+
+        assert_eq!(coda.is_ok(), false, "CODA-bad.txt should not be ok");
+    }
+}
+
+#[cfg(test)]
 mod test_parse_header {
     use chrono::NaiveDate;
 
