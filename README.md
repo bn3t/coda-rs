@@ -61,3 +61,6 @@ $ coda-rs --json -e latin1 FILE.CD2
 * Create db (sqllite?)
 * Handle globalisation
 * Check the file is a valid coda file
+* Add Enum for reason (2.2 - 113)
+* Add code documentation
+* Sort by file reference
