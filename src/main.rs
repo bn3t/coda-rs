@@ -48,7 +48,7 @@ fn run() -> Result<()> {
         });
 
     if !had_errors {
-        println!("{:?}", coda_list);
+        // println!("{:?}", coda_list);
 
         // if options.debug {
         //     coda_list.

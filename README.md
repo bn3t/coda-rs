@@ -50,6 +50,7 @@ $ coda-rs --json -e latin1 FILE.CD2
 * Support account number and currency code (see 7.5 of spec)
 * Trim text
 * Load multiple files
+* Sort by file reference
 
 ### TODO
 
@@ -63,4 +64,3 @@ $ coda-rs --json -e latin1 FILE.CD2
 * Check the file is a valid coda file
 * Add Enum for reason (2.2 - 113)
 * Add code documentation
-* Sort by file reference
