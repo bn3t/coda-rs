@@ -13,8 +13,8 @@ use coda::encoding::DecoderTrap;
 use json::date_serde;
 
 use errors::*;
-use utils::{parse_date, parse_duplicate, parse_field, parse_sign, parse_str, parse_str_append,
-            parse_str_trim, Sign, StringUtils, parse_u32, parse_u64, parse_u8};
+use utils::{parse_date, parse_duplicate, parse_field, parse_sign, parse_str, parse_str_append, parse_str_trim, Sign,
+            StringUtils, parse_u32, parse_u64, parse_u8};
 
 #[derive(PartialEq, Debug, Serialize)]
 pub enum Account {
@@ -105,11 +105,11 @@ pub struct OldBalance {
     pub old_sequence: String, // ': (slice(2, 5), str),
     // pub account_currency: String, // ': (slice(5, 42), str),
     pub old_balance_sign: Sign,
-    pub old_balance: u64, // ': (slice(43, 58), _amount),
+    pub old_balance: u64,                                          // ': (slice(43, 58), _amount),
     #[serde(with = "date_serde")] pub old_balance_date: NaiveDate, // ': (slice(58, 64), _date),
-    pub account_holder_name: String, // ': (slice(64, 90), _string),
-    pub account_description: String, // ': (slice(90, 125), _string),
-    pub coda_sequence: String, // ': (slice(125, 128), str),
+    pub account_holder_name: String,                               // ': (slice(64, 90), _string),
+    pub account_description: String,                               // ': (slice(90, 125), _string),
+    pub coda_sequence: String,                                     // ': (slice(125, 128), str),
 }
 
 #[derive(Debug, Serialize)]
@@ -158,7 +158,7 @@ pub struct NewBalance {
     pub new_sequence: String, //': (slice(1, 4), str),
     // We don't store the account coming from the new balance
     pub new_balance_sign: Sign,
-    pub new_balance: u64, //': (slice(41, 57), _amount),
+    pub new_balance: u64,                                          //': (slice(41, 57), _amount),
     #[serde(with = "date_serde")] pub new_balance_date: NaiveDate, //': (slice(57, 63), _date),
 }
 
@@ -172,12 +172,9 @@ pub struct Trailer {
 impl Trailer {
     pub fn parse(line: &str) -> Result<Trailer> {
         Ok(Trailer {
-            number_records: parse_field(line, 16..22, parse_u32)
-                .chain_err(|| "Could not parse old_balance")?,
-            total_debit: parse_field(line, 22..37, parse_u64)
-                .chain_err(|| "Could not parse old_balance")?,
-            total_credit: parse_field(line, 37..52, parse_u64)
-                .chain_err(|| "Could not parse old_balance")?,
+            number_records: parse_field(line, 16..22, parse_u32).chain_err(|| "Could not parse old_balance")?,
+            total_debit: parse_field(line, 22..37, parse_u64).chain_err(|| "Could not parse old_balance")?,
+            total_credit: parse_field(line, 37..52, parse_u64).chain_err(|| "Could not parse old_balance")?,
         })
     }
 }
@@ -185,22 +182,16 @@ impl Trailer {
 impl OldBalance {
     pub fn parse(line: &str) -> Result<OldBalance> {
         Ok(OldBalance {
-            account: parse_field(line, 1..42, parse_account)
-                .chain_err(|| "Could not parse account_structure")?,
-            old_sequence: parse_field(line, 2..5, parse_str)
-                .chain_err(|| "Could not parse old_sequence")?,
-            old_balance_sign: parse_field(line, 42..43, parse_sign)
-                .chain_err(|| "Could not parse old_balance_sign")?,
-            old_balance: parse_field(line, 43..58, parse_u64)
-                .chain_err(|| "Could not parse old_balance")?,
-            old_balance_date: parse_field(line, 58..64, parse_date)
-                .chain_err(|| "Could not parse old_balance_date")?,
+            account: parse_field(line, 1..42, parse_account).chain_err(|| "Could not parse account_structure")?,
+            old_sequence: parse_field(line, 2..5, parse_str).chain_err(|| "Could not parse old_sequence")?,
+            old_balance_sign: parse_field(line, 42..43, parse_sign).chain_err(|| "Could not parse old_balance_sign")?,
+            old_balance: parse_field(line, 43..58, parse_u64).chain_err(|| "Could not parse old_balance")?,
+            old_balance_date: parse_field(line, 58..64, parse_date).chain_err(|| "Could not parse old_balance_date")?,
             account_holder_name: parse_field(line, 64..90, parse_str_trim)
                 .chain_err(|| "Could not parse account_holder_name")?,
             account_description: parse_field(line, 90..125, parse_str_trim)
                 .chain_err(|| "Could not parse account_description")?,
-            coda_sequence: parse_field(line, 125..128, parse_str)
-                .chain_err(|| "Could not parse coda_sequence")?,
+            coda_sequence: parse_field(line, 125..128, parse_str).chain_err(|| "Could not parse coda_sequence")?,
         })
     }
 }
@@ -208,20 +199,14 @@ impl OldBalance {
 impl Header {
     pub fn parse(line: &str) -> Result<Header> {
         Ok(Header {
-            creation_date: parse_field(line, 5..11, parse_date)
-                .chain_err(|| "Could not parse creation_date")?,
+            creation_date: parse_field(line, 5..11, parse_date).chain_err(|| "Could not parse creation_date")?,
             bank_id: parse_field(line, 11..14, parse_str).chain_err(|| "Could not parse bank_id")?,
-            duplicate: parse_field(line, 16..17, parse_duplicate)
-                .chain_err(|| "Could not parse duplicate")?,
-            file_reference: parse_field(line, 24..34, parse_str)
-                .chain_err(|| "Could not parse file_reference")?,
-            name_addressee: parse_field(line, 34..60, parse_str_trim)
-                .chain_err(|| "Could not parse name_addressee")?,
+            duplicate: parse_field(line, 16..17, parse_duplicate).chain_err(|| "Could not parse duplicate")?,
+            file_reference: parse_field(line, 24..34, parse_str).chain_err(|| "Could not parse file_reference")?,
+            name_addressee: parse_field(line, 34..60, parse_str_trim).chain_err(|| "Could not parse name_addressee")?,
             bic: parse_field(line, 60..71, parse_str_trim).chain_err(|| "Could not parse bic")?,
-            company_id: parse_field(line, 71..82, parse_str)
-                .chain_err(|| "Could not parse company_id")?,
-            reference: parse_field(line, 88..104, parse_str_trim)
-                .chain_err(|| "Could not parse reference")?,
+            company_id: parse_field(line, 71..82, parse_str).chain_err(|| "Could not parse company_id")?,
+            reference: parse_field(line, 88..104, parse_str_trim).chain_err(|| "Could not parse reference")?,
             related_reference: parse_field(line, 105..120, parse_str_trim)
                 .chain_err(|| "Could not parse related_reference")?,
             version: parse_field(line, 127..128, parse_u8).chain_err(|| "Could not parse version")?,
@@ -233,21 +218,14 @@ impl Movement {
     fn parse_type1(line: &str) -> Result<Movement> {
         Ok(Movement {
             sequence: parse_field(line, 2..6, parse_str).chain_err(|| "Could not parse sequence")?,
-            detail_sequence: parse_field(line, 6..10, parse_str)
-                .chain_err(|| "Could not parse detail_sequence")?,
-            bank_reference: parse_field(line, 10..31, parse_str)
-                .chain_err(|| "Could not parse bank_reference")?,
+            detail_sequence: parse_field(line, 6..10, parse_str).chain_err(|| "Could not parse detail_sequence")?,
+            bank_reference: parse_field(line, 10..31, parse_str).chain_err(|| "Could not parse bank_reference")?,
             amount: parse_field(line, 31..47, parse_u64).chain_err(|| "Could not parse amount")?,
-            value_date: parse_field(line, 47..53, parse_date)
-                .chain_err(|| "Could not parse value_date")?,
-            transaction_code: parse_field(line, 53..61, parse_str)
-                .chain_err(|| "Could not parse transaction_code")?,
-            communication: parse_field(line, 62..115, parse_str_trim)
-                .chain_err(|| "Could not parse transaction_code")?,
-            entry_date: parse_field(line, 115..121, parse_date)
-                .chain_err(|| "Could not parse entry_date")?,
-            statement_number: parse_field(line, 121..124, parse_str)
-                .chain_err(|| "Could not parse statement_number")?,
+            value_date: parse_field(line, 47..53, parse_date).chain_err(|| "Could not parse value_date")?,
+            transaction_code: parse_field(line, 53..61, parse_str).chain_err(|| "Could not parse transaction_code")?,
+            communication: parse_field(line, 62..115, parse_str_trim).chain_err(|| "Could not parse transaction_code")?,
+            entry_date: parse_field(line, 115..121, parse_date).chain_err(|| "Could not parse entry_date")?,
+            statement_number: parse_field(line, 121..124, parse_str).chain_err(|| "Could not parse statement_number")?,
             customer_reference: None,
             counterparty_bic: None,
             r_transaction: None,
@@ -260,34 +238,30 @@ impl Movement {
     }
 
     pub fn parse_type2(&mut self, line: &str) -> Result<()> {
-        self.customer_reference = Some(parse_field(line, 121..124, parse_str_trim)
-            .chain_err(|| "Could not parse customer_reference")?);
-        self.counterparty_bic = Some(parse_field(line, 98..109, parse_str_trim)
-            .chain_err(|| "Could not parse counterparty_bic")?);
-        self.r_transaction = Some(parse_field(line, 112..113, parse_str_trim)
-            .chain_err(|| "Could not parse r_transaction")?);
-        self.r_reason = Some(parse_field(line, 113..117, parse_str_trim)
-            .chain_err(|| "Could not parse r_reason")?);
-        self.category_purpose = Some(parse_field(line, 117..121, parse_str_trim)
-            .chain_err(|| "Could not parse category_purpose")?);
-        self.purpose = Some(parse_field(line, 121..125, parse_str_trim)
-            .chain_err(|| "Could not parse purpose")?);
+        self.customer_reference =
+            Some(parse_field(line, 121..124, parse_str_trim).chain_err(|| "Could not parse customer_reference")?);
+        self.counterparty_bic =
+            Some(parse_field(line, 98..109, parse_str_trim).chain_err(|| "Could not parse counterparty_bic")?);
+        self.r_transaction =
+            Some(parse_field(line, 112..113, parse_str_trim).chain_err(|| "Could not parse r_transaction")?);
+        self.r_reason = Some(parse_field(line, 113..117, parse_str_trim).chain_err(|| "Could not parse r_reason")?);
+        self.category_purpose =
+            Some(parse_field(line, 117..121, parse_str_trim).chain_err(|| "Could not parse category_purpose")?);
+        self.purpose = Some(parse_field(line, 121..125, parse_str_trim).chain_err(|| "Could not parse purpose")?);
 
-        let communication = parse_field(line, 10..63, parse_str_append)
-            .chain_err(|| "Could not parse communication")?;
+        let communication = parse_field(line, 10..63, parse_str_append).chain_err(|| "Could not parse communication")?;
         self.communication.push_str(&communication);
 
         Ok(())
     }
 
     pub fn parse_type3(&mut self, line: &str) -> Result<()> {
-        self.counterparty_name = Some(parse_field(line, 10..47, parse_str_trim)
-            .chain_err(|| "Could not parse counterparty_name")?);
-        self.counterparty_account = Some(parse_field(line, 47..82, parse_str_trim)
-            .chain_err(|| "Could not parse counterparty_account")?);
+        self.counterparty_name =
+            Some(parse_field(line, 10..47, parse_str_trim).chain_err(|| "Could not parse counterparty_name")?);
+        self.counterparty_account =
+            Some(parse_field(line, 47..82, parse_str_trim).chain_err(|| "Could not parse counterparty_account")?);
 
-        let communication = parse_field(line, 82..125, parse_str_append)
-            .chain_err(|| "Could not parse communication")?;
+        let communication = parse_field(line, 82..125, parse_str_append).chain_err(|| "Could not parse communication")?;
         self.communication.push_str(&communication);
 
         Ok(())
@@ -298,30 +272,24 @@ impl Information {
     fn parse_type1(line: &str) -> Result<Information> {
         Ok(Information {
             sequence: parse_field(line, 2..6, parse_str).chain_err(|| "Could not parse sequence")?,
-            detail_sequence: parse_field(line, 6..10, parse_str)
-                .chain_err(|| "Could not parse detail_sequence")?,
-            bank_reference: parse_field(line, 10..31, parse_str)
-                .chain_err(|| "Could not parse detail_sequence")?,
-            transaction_code: parse_field(line, 31..39, parse_str)
-                .chain_err(|| "Could not parse detail_sequence")?,
+            detail_sequence: parse_field(line, 6..10, parse_str).chain_err(|| "Could not parse detail_sequence")?,
+            bank_reference: parse_field(line, 10..31, parse_str).chain_err(|| "Could not parse detail_sequence")?,
+            transaction_code: parse_field(line, 31..39, parse_str).chain_err(|| "Could not parse detail_sequence")?,
             communication_structure: parse_field(line, 39..40, parse_communicationstructure)
                 .chain_err(|| "Could not parse communication_structure")?,
-            communication: parse_field(line, 40..113, parse_str_trim)
-                .chain_err(|| "Could not parse detail_sequence")?,
+            communication: parse_field(line, 40..113, parse_str_trim).chain_err(|| "Could not parse detail_sequence")?,
         })
     }
 
     pub fn parse_type2(&mut self, line: &str) -> Result<()> {
-        let communication = parse_field(line, 10..115, parse_str_append)
-            .chain_err(|| "Could not parse communication")?;
+        let communication = parse_field(line, 10..115, parse_str_append).chain_err(|| "Could not parse communication")?;
         self.communication.push_str(&communication);
 
         Ok(())
     }
 
     pub fn parse_type3(&mut self, line: &str) -> Result<()> {
-        let communication = parse_field(line, 10..100, parse_str_append)
-            .chain_err(|| "Could not parse communication")?;
+        let communication = parse_field(line, 10..100, parse_str_append).chain_err(|| "Could not parse communication")?;
         self.communication.push_str(&communication);
 
         Ok(())
@@ -332,15 +300,13 @@ impl FreeCommunication {
     pub fn parse_line1(line: &str) -> Result<FreeCommunication> {
         Ok(FreeCommunication {
             sequence: parse_field(line, 2..6, parse_str).chain_err(|| "Could not parse sequence")?,
-            detail_sequence: parse_field(line, 6..10, parse_str)
-                .chain_err(|| "Could not parse detail_sequence")?,
+            detail_sequence: parse_field(line, 6..10, parse_str).chain_err(|| "Could not parse detail_sequence")?,
             text: parse_field(line, 32..112, parse_str_trim).chain_err(|| "Could not parse text")?,
         })
     }
 
     pub fn parse_following(&mut self, line: &str) -> Result<()> {
-        let text =
-            parse_field(line, 32..112, parse_str_append).chain_err(|| "Could not parse text")?;
+        let text = parse_field(line, 32..112, parse_str_append).chain_err(|| "Could not parse text")?;
         self.text.push_str(&text);
 
         Ok(())
@@ -350,22 +316,17 @@ impl FreeCommunication {
 impl NewBalance {
     fn parse(line: &str) -> Result<NewBalance> {
         Ok(NewBalance {
-            new_sequence: parse_field(line, 1..4, parse_str)
-                .chain_err(|| "Could not parse new_sequence")?,
-            new_balance_sign: parse_field(line, 42..43, parse_sign)
-                .chain_err(|| "Could not parse old_balance_sign")?,
-            new_balance: parse_field(line, 41..57, parse_u64)
-                .chain_err(|| "Could not parse new_balance")?,
-            new_balance_date: parse_field(line, 57..63, parse_date)
-                .chain_err(|| "Could not parse new_balance_date")?,
+            new_sequence: parse_field(line, 1..4, parse_str).chain_err(|| "Could not parse new_sequence")?,
+            new_balance_sign: parse_field(line, 42..43, parse_sign).chain_err(|| "Could not parse old_balance_sign")?,
+            new_balance: parse_field(line, 41..57, parse_u64).chain_err(|| "Could not parse new_balance")?,
+            new_balance_date: parse_field(line, 57..63, parse_date).chain_err(|| "Could not parse new_balance_date")?,
         })
     }
 }
 
 impl Coda {
     pub fn parse(coda_filename: &str, encoding_label: &str) -> Result<Coda> {
-        let f =
-            File::open(coda_filename).chain_err(|| format!("Unable to open {}", coda_filename))?;
+        let f = File::open(coda_filename).chain_err(|| format!("Unable to open {}", coda_filename))?;
 
         let encoding = encoding_from_whatwg_label(encoding_label).unwrap();
 
@@ -390,19 +351,16 @@ impl Coda {
             let line = line.unwrap();
             match line.get_range(0..1).as_str() {
                 "0" => {
-                    header = Some(Header::parse(&line)
-                        .chain_err(|| -> Error { "Could not parse header".into() })?);
+                    header = Some(Header::parse(&line).chain_err(|| -> Error { "Could not parse header".into() })?);
                 }
                 "1" => {
-                    old_balance = Some(OldBalance::parse(&line)
-                        .chain_err(|| -> Error { "Could not parse oldbalance".into() })?)
+                    old_balance =
+                        Some(OldBalance::parse(&line).chain_err(|| -> Error { "Could not parse oldbalance".into() })?)
                 }
                 "2" => match line.get_range(1..2).as_str() {
                     "1" => {
-                        let movement =
-                            Some(Movement::parse_type1(&line).chain_err(|| -> Error {
-                                format!("Could not parse Movement (line {})", num + 1).into()
-                            })?);
+                        let movement = Some(Movement::parse_type1(&line)
+                            .chain_err(|| -> Error { format!("Could not parse Movement (line {})", num + 1).into() })?);
                         movements.push(movement.unwrap());
                     }
                     "2" => {
@@ -446,9 +404,7 @@ impl Coda {
                 "4" => match line.get_range(6..10).as_str() {
                     "0000" => {
                         let free_communication = Some(FreeCommunication::parse_line1(&line)
-                            .chain_err(|| -> Error {
-                                "Could not parse FreeCommunication".into()
-                            })?);
+                            .chain_err(|| -> Error { "Could not parse FreeCommunication".into() })?);
                         free_communications.push(free_communication.unwrap());
                     }
                     _ => {
@@ -459,8 +415,7 @@ impl Coda {
                     }
                 },
                 "8" => {
-                    new_balance =
-                        Some(NewBalance::parse(&line).chain_err(|| "Could not parse NewBalance")?);
+                    new_balance = Some(NewBalance::parse(&line).chain_err(|| "Could not parse NewBalance")?);
                 }
                 "9" => {
                     trailer = Some(Trailer::parse(&line).chain_err(|| "Could not parse Trailer")?);
@@ -468,8 +423,8 @@ impl Coda {
                 _ => {}
             };
         }
-        if header.is_some() && old_balance.is_some() && old_balance.is_some()
-            && new_balance.is_some() && trailer.is_some()
+        if header.is_some() && old_balance.is_some() && old_balance.is_some() && new_balance.is_some()
+            && trailer.is_some()
         {
             Ok(Coda {
                 header: header.unwrap(),
@@ -483,6 +438,25 @@ impl Coda {
         } else {
             Err("Could not parse coda - Missing parts".into())
         }
+    }
+}
+
+#[cfg(test)]
+mod test_parse_coda {
+    use super::*;
+
+    #[test]
+    fn parse_coda_valid() {
+        let coda = Coda::parse("test-data/CODA.txt", "latin1");
+
+        assert_eq!(coda.is_ok(), true, "CODA.txt should be ok");
+    }
+
+    #[test]
+    fn parse_coda_invalid() {
+        let coda = Coda::parse("test-data/CODA-bad.txt", "latin1");
+
+        assert_eq!(coda.is_ok(), false, "CODA-bad.txt should not be ok");
     }
 }
 
@@ -519,7 +493,7 @@ mod test_parse_header {
         assert_eq!(
             actual.name_addressee,
             "Testgebruiker21",
-            "address should be 'Testgebruiker21'"
+            // // "address should be 'Testgebruiker21'"
         );
         assert_eq!(actual.bic, "KREDBEBB", "bic should be 'KREDBEBB'");
         assert_eq!(
@@ -925,7 +899,11 @@ mod test_parse_freecommunication {
             "0000",
             "detail_sequence should be '0000'"
         );
-        assert_eq!(actual.text, "LINE 1 FREE COMMUNICATION                                                      X", "communication should be 'LINE 1 FREE COMMUNICATION                                                       '");
+        assert_eq!(
+            actual.text,
+            "LINE 1 FREE COMMUNICATION                                                      X",
+            "communication should be 'LINE 1 FREE COMMUNICATION                                                       '"
+        );
     }
 
     #[test]
@@ -966,7 +944,11 @@ mod test_parse_freecommunication {
             "0000",
             "detail_sequence should be '0000'"
         );
-        assert_eq!(actual.text, "LINE 1 FREE COMMUNICATION                                                      X\nLINE 2 FREE COMMUNICATION                                                      Y", "communication should be 'LINE 1 FREE COMMUNICATION                                                       '");
+        assert_eq!(
+            actual.text,
+            "LINE 1 FREE COMMUNICATION                                                      X\nLINE 2 FREE COMMUNICATION                                                      Y",
+            "communication should be 'LINE 1 FREE COMMUNICATION                                                       '"
+        );
     }
 
     #[test]
@@ -1042,7 +1024,11 @@ mod test_parse_information {
         let result = actual.parse_type2(line2);
 
         assert_eq!(result.is_ok(), true);
-        assert_eq!(actual.communication, "001TPF CONSULTING\nAV. DE HAVESKERCKE  46             1190   BRUXELLES", "communication should be '1001TPF CONSULTING                                                        AV. DE HAVESKERCKE  46             1190   BRUXELLES                                                      '");
+        assert_eq!(
+            actual.communication,
+            "001TPF CONSULTING\nAV. DE HAVESKERCKE  46             1190   BRUXELLES",
+            "communication should be '1001TPF CONSULTING                                                        AV. DE HAVESKERCKE  46             1190   BRUXELLES                                                      '"
+        );
     }
 
     #[test]

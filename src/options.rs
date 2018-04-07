@@ -10,6 +10,7 @@ pub struct Options {
     pub json: bool,
     pub debug: bool,
     pub encoding_label: Option<String>,
+    pub sort_by_ref: bool,
 }
 
 impl Options {
@@ -19,6 +20,7 @@ impl Options {
             json: false,
             debug: false,
             encoding_label: None,
+            sort_by_ref: false,
         };
         {
             let mut ap = ArgumentParser::new();
@@ -32,6 +34,11 @@ impl Options {
                 &["-d", "--debug"],
                 StoreTrue,
                 "Debug parsed coda data on the console",
+            );
+            ap.refer(&mut options.sort_by_ref).add_option(
+                &["--sort-ref"],
+                StoreTrue,
+                "Sort by file reference",
             );
             ap.refer(&mut options.encoding_label).add_option(
                 &["-e", "--encoding"],
@@ -82,6 +89,7 @@ mod test_options {
         let args = vec![
             String::from("coda-rs"),
             String::from("-j"),
+            String::from("--sort-ref"),
             String::from("-e"),
             String::from("windows-1252"),
             String::from("coda_file1.txt"),
@@ -96,6 +104,7 @@ mod test_options {
             vec!["coda_file1.txt", "coda_file2.txt", "coda_file3.txt"]
         );
         assert_eq!(options.json, true);
+        assert_eq!(options.sort_by_ref, true);
         assert_eq!(options.encoding_label.is_some(), true);
         assert_eq!(options.encoding_label.unwrap(), "windows-1252");
     }
