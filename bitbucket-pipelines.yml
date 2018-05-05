@@ -16,5 +16,5 @@ pipelines:
           - cargo test -v
 definitions:
   caches:
-    cargo-home: $HOME/.npm
+    cargo-home: $HOME/.cargo
     cargo-target: target
