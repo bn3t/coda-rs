@@ -9,12 +9,12 @@ pipelines:
   default:
     - step:
         caches:
-          - cargo_home
-          - cargo_target
+          - cargo-home
+          - cargo-target
         script: # Modify the commands below to build your repository.
           - cargo build -v
           - cargo test -v
 definitions:
   caches:
-    cargo_home: $HOME/.npm
-    cargo_target: target
+    cargo-home: $HOME/.npm
+    cargo-target: target
