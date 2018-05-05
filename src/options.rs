@@ -11,6 +11,8 @@ pub struct Options {
     pub debug: bool,
     pub encoding_label: Option<String>,
     pub sort_by_ref: bool,
+    pub list_summary: bool,
+    pub list_all: bool,
 }
 
 impl Options {
@@ -21,24 +23,25 @@ impl Options {
             debug: false,
             encoding_label: None,
             sort_by_ref: false,
+            list_summary: false,
+            list_all: false,
         };
         {
             let mut ap = ArgumentParser::new();
             ap.set_description("Parse coda files");
-            ap.refer(&mut options.json).add_option(
-                &["-j", "--json"],
-                StoreTrue,
-                "Convert coda files to json",
-            );
+            ap.refer(&mut options.json)
+                .add_option(&["-j", "--json"], StoreTrue, "Convert coda files to json");
             ap.refer(&mut options.debug).add_option(
                 &["-d", "--debug"],
                 StoreTrue,
                 "Debug parsed coda data on the console",
             );
-            ap.refer(&mut options.sort_by_ref).add_option(
-                &["--sort-ref"],
+            ap.refer(&mut options.sort_by_ref)
+                .add_option(&["--sort-ref"], StoreTrue, "Sort by file reference");
+            ap.refer(&mut options.list_summary).add_option(
+                &["--list-summary"],
                 StoreTrue,
-                "Sort by file reference",
+                "List summary (headers/footers)",
             );
             ap.refer(&mut options.encoding_label).add_option(
                 &["-e", "--encoding"],
@@ -107,5 +110,21 @@ mod test_options {
         assert_eq!(options.sort_by_ref, true);
         assert_eq!(options.encoding_label.is_some(), true);
         assert_eq!(options.encoding_label.unwrap(), "windows-1252");
+    }
+
+    #[test]
+    fn parse_valid_params_list_summary() {
+        let args = vec![
+            String::from("coda-rs"),
+            String::from("--list-summary"),
+            String::from("coda_file1.txt"),
+        ];
+        let options = Options::parse_options(args);
+        assert_eq!(options.is_ok(), true, "Returned options should be Ok");
+        let options = options.unwrap();
+        assert_eq!(options.json, false);
+        assert_eq!(options.sort_by_ref, false);
+        assert_eq!(options.encoding_label.is_some(), false);
+        assert_eq!(options.list_summary, true);
     }
 }
