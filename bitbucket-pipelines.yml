@@ -8,6 +8,13 @@ image: rust:latest
 pipelines:
   default:
     - step:
+        caches:
+          - cargo_home
+          - cargo_target
         script: # Modify the commands below to build your repository.
           - cargo build -v
           - cargo test -v
+definitions:
+  caches:
+    cargo_home: $HOME/.npm
+    cargo_target: target
