@@ -11,6 +11,15 @@ pub enum Sign {
     Debit,
 }
 
+impl Sign {
+    pub fn to_sign(&self) -> String {
+        match *self {
+            Sign::Credit { .. } => String::from("+"),
+            Sign::Debit { .. } => String::from("-"),
+        }
+    }
+}
+
 pub fn parse_sign(s: &str) -> Result<Sign> {
     match s {
         "0" => Ok(Sign::Credit),
@@ -20,8 +29,7 @@ pub fn parse_sign(s: &str) -> Result<Sign> {
 }
 
 pub fn parse_date(s: &str) -> Result<NaiveDate> {
-    let date: NaiveDate =
-        NaiveDate::parse_from_str(s, "%d%m%y").chain_err(|| "Could not parse date")?;
+    let date: NaiveDate = NaiveDate::parse_from_str(s, "%d%m%y").chain_err(|| "Could not parse date")?;
 
     Ok(date)
 }
@@ -58,11 +66,7 @@ pub fn parse_duplicate(s: &str) -> Result<bool> {
     }
 }
 
-pub fn parse_field<T>(
-    line: &str,
-    range: Range<usize>,
-    convert: fn(s: &str) -> Result<T>,
-) -> Result<T> {
+pub fn parse_field<T>(line: &str, range: Range<usize>, convert: fn(s: &str) -> Result<T>) -> Result<T> {
     Ok(convert(line.to_string().get_range(range).as_str()).chain_err(|| "Could not parse field")?)
 }
 
@@ -83,6 +87,16 @@ impl StringUtils for String {
 #[cfg(test)]
 mod test_substring {
     use super::*;
+
+    #[test]
+    fn sign_credit_to_sign() {
+        assert_eq!(Sign::Credit.to_sign(), "+");
+    }
+
+    #[test]
+    fn sign_debit_to_sign() {
+        assert_eq!(Sign::Debit.to_sign(), "-");
+    }
 
     #[test]
     fn substring_0_to_3() {

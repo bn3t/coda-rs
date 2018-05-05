@@ -77,6 +77,13 @@ fn run() -> Result<()> {
             for coda in coda_list {
                 tools::print_as_json(&coda).chain_err(|| "Error while printing json")?;
             }
+        } else if options.list_summary || options.list_all {
+            coda_list.iter().for_each(|coda| {
+                if options.list_summary || options.list_all {
+                    tools::print_header(&mut std::io::stdout(), &coda);
+                    tools::print_footer(&mut std::io::stdout(), &coda);
+                };
+            });
         }
         Ok(())
     } else {

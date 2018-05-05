@@ -5,6 +5,7 @@ extern crate serde_json;
 
 use std::fs::File;
 use std::io::{BufRead, BufReader, Cursor, Read};
+use std::fmt;
 
 use chrono::NaiveDate;
 
@@ -35,6 +36,37 @@ pub enum Account {
         number: String,
         currency: String,
     },
+}
+
+impl fmt::Display for Account {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Account::BelgianAccountNumber { ref number, .. } => write!(f, "{}", number),
+            Account::ForeignAccountNumber {
+                ref number,
+                ref currency,
+            } => write!(f, "{}{}", number, currency),
+            Account::IBANBelgianAccountNumber {
+                ref number,
+                ref currency,
+            } => write!(f, "{}{}", number, currency),
+            Account::IBANForeignAccountNumber {
+                ref number,
+                ref currency,
+            } => write!(f, "{}{}", number, currency),
+        }
+    }
+}
+
+impl Account {
+    pub fn get_currency(&self) -> String {
+        match *self {
+            Account::BelgianAccountNumber { ref currency, .. } => currency.clone(),
+            Account::ForeignAccountNumber { ref currency, .. } => currency.clone(),
+            Account::IBANBelgianAccountNumber { ref currency, .. } => currency.clone(),
+            Account::IBANForeignAccountNumber { ref currency, .. } => currency.clone(),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Serialize)]
@@ -569,7 +601,7 @@ mod test_parse_oldbalance {
 
 #[cfg(test)]
 #[allow(non_snake_case)]
-mod test_parse_account {
+mod test_account {
     use super::Account;
     use super::parse_account;
 
@@ -634,6 +666,92 @@ mod test_parse_account {
     fn parse_accountstructure_valid_invalid() {
         let actual = parse_account("4BLAH");
         assert_eq!(actual.is_ok(), false, "'4' should not be ok");
+    }
+
+    #[test]
+    fn display_BelgianAccountNumber() {
+        let account = Account::BelgianAccountNumber {
+            number: String::from("MYNUMBER"),
+            currency: String::from("EUR"),
+            country: String::from("BE"),
+        };
+        assert_eq!(format!("{}", account), "MYNUMBER");
+    }
+
+    #[test]
+    fn display_ForeignAccountNumber() {
+        let account = Account::ForeignAccountNumber {
+            number: String::from("MYNUMBER"),
+            currency: String::from("EUR"),
+        };
+        assert_eq!(format!("{}", account), "MYNUMBEREUR");
+    }
+
+    #[test]
+    fn display_IBANBelgianAccountNumber() {
+        let account = Account::IBANBelgianAccountNumber {
+            number: String::from("MYNUMBER"),
+            currency: String::from("EUR"),
+        };
+        assert_eq!(format!("{}", account), "MYNUMBEREUR");
+    }
+
+    #[test]
+    fn display_IBANForeignAccountNumber() {
+        let account = Account::IBANForeignAccountNumber {
+            number: String::from("MYNUMBER"),
+            currency: String::from("EUR"),
+        };
+        assert_eq!(format!("{}", account), "MYNUMBEREUR");
+    }
+
+    #[test]
+    fn account_get_currency_BelgianAccountNumber() {
+        let account = Account::BelgianAccountNumber {
+            number: String::from("MYNUNMER"),
+            currency: String::from("EUR"),
+            country: String::from("BE"),
+        };
+
+        let actual = account.get_currency();
+
+        assert_eq!(actual, "EUR");
+    }
+
+    #[test]
+    fn account_get_currency_ForeignAccountNumber() {
+        let account = Account::ForeignAccountNumber {
+            number: String::from("MYNUNMER"),
+            currency: String::from("EUR"),
+        };
+
+        let actual = account.get_currency();
+
+        assert_eq!(actual, "EUR");
+    }
+
+    #[test]
+    fn account_get_currency_IBANBelgianAccountNumber() {
+        let account = Account::IBANBelgianAccountNumber {
+            number: String::from("MYNUNMER"),
+            currency: String::from("EUR"),
+        };
+
+        let actual = account.get_currency();
+
+        assert_eq!(actual, "EUR");
+    }
+
+    #[test]
+    fn account_get_currency_IBANForeignAccountNumber() {
+        let account = Account::IBANForeignAccountNumber {
+            number: String::from("MYNUNMER"),
+            currency: String::from("EUR"),
+        };
+
+        let actual = account.get_currency();
+
+        assert_eq!(actual, "EUR");
     }
 }
 
