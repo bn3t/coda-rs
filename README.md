@@ -2,8 +2,6 @@
 
 Utility to parse coda files (https://www.febelfin.be/sites/default/files/files/standard-coda-2.5-en.pdf).
 
-This is a utility to tail text from an HTTP endpoint. It works similarly to doing tail -f with a local file. Typically, the source should be a growing text file (like a log file) served by a server supporting the Range header in http.
-
 ## Usage
 
 ```
