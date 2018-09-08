@@ -1,6 +1,6 @@
 [package]
 name = "coda-rs"
-version = "0.1.1-pre"
+version = "0.1.1"
 authors = ["Bernard Niset <bernard.niset@gmail.com>"]
 build = "build.rs"
 
