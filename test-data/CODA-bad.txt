@@ -1,5 +1,5 @@
 0000006120672505        00099449  Testgebruiker21           KREDBEBB   00630366277 00000                                       2
-10001435000000080 EUR0BE                  0000000000000000061206Testgebruiker21           KBC-Bedrijfsrekening               001
+10001badbadbad435000000080 EUR0BE                  0000000000000000061206Testgebruiker21           KBC-Bedrijfsrekening               001
 2100010000EPIB00048 AWIUBTKAPUO1000000002578250061206007990000BORDEREAU DE DECOMPTE AVANCES    015 NUMERO D'OPERATI06120600111 0
 2200010000ON 495953                                                                                                          0 0
 2100020000INID00243 AWIVVDRNTSO0000000000011210061206307870000AFREKENINGSBORDEREL VOORSCHOTTEN 014 OPERATIENUMMER  06120600111 0
@@ -142,6 +142,7 @@
 2300370000728051142478          002WR2         CARNIPOR SA                                                                   0 1
 3100370001OL4729981 TMNHRSTOTUO030490001001CARNIPOR SA                                                                       1 0
 3200370001RUE DE LA STATION 47               4852HOMBOURG                                                                    0 0
+3300370001THIRD LINE                                                                                                         0 0
 2100380000OL9483338IUBOBPOTRFCO1000000000321040061206341010000AUTOROUTE SANEF        FAKT NO F0337604812           06120600111 0
 2200380000FAKT DECEMBER 2005                                   SANEF NORD                                      832856027A00011 0
 2300380000                                      AUTOROUTE BANQUE                                                             0 1
@@ -258,5 +259,9 @@
 2100590002OL9462125KUBOKOSDIVKS1000000000006450061206841370130                                                     06120600100 0
 2100590003OL9462125KUBOKOSDIVKS10000000000060400612068413701111060000000000060400000000000287600021000000002000000006120600111 0
 220059000300006040                                                                                                           0 0
-8001435000000080 EUR0BE                  0000009405296990071206                                                                0
+8001435000000080 EUR0BE                  0000009405296990071206                                                                1
+4 00010000                      LINE 1 FREE COMMUNICATION                                                                      1
+4 00010001                      LINE 2 FREE COMMUNICATION                                                                      1
+4 00010002                      LINE 3 FREE COMMUNICATION                                                                      1
+4 00010003                      LINE 4 FREE COMMUNICATION                                                                      0
 9               000260000003085871600000012491168590                                                                           2
