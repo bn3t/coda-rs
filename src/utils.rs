@@ -1,7 +1,7 @@
 extern crate chrono;
 
-use std::ops::Range;
 use chrono::NaiveDate;
+use std::ops::Range;
 
 use errors::*;
 
@@ -76,10 +76,7 @@ pub trait StringUtils {
 
 impl StringUtils for String {
     fn get_range(&self, range: Range<usize>) -> Self {
-        let result: String = self.chars()
-            .skip(range.start)
-            .take(range.end - range.start)
-            .collect();
+        let result: String = self.chars().skip(range.start).take(range.end - range.start).collect();
         result
     }
 }
@@ -105,17 +102,11 @@ mod test_substring {
 
     #[test]
     fn substring_5_to_10() {
-        assert_eq!(
-            "012345678901234567890".to_string().get_range(5..10),
-            "56789"
-        );
+        assert_eq!("012345678901234567890".to_string().get_range(5..10), "56789");
     }
     #[test]
     fn substring_5_to_10_multibytes() {
-        assert_eq!(
-            "01é345678901234567890".to_string().get_range(5..10),
-            "56789"
-        );
+        assert_eq!("01é345678901234567890".to_string().get_range(5..10), "56789");
     }
 }
 
@@ -142,11 +133,7 @@ mod test_parse_utils {
         let actual = parse_str("05505");
 
         assert_eq!(actual.is_ok(), true, "String should be ok");
-        assert_eq!(
-            actual.unwrap(),
-            String::from("05505"),
-            "String should be 05505"
-        );
+        assert_eq!(actual.unwrap(), String::from("05505"), "String should be 05505");
     }
 
     #[test]
@@ -216,11 +203,7 @@ mod test_parse_utils {
         let actual = parse_str_append("BLAH   ");
 
         assert_eq!(actual.is_ok(), true, "str 'BLAH   ' should be ok");
-        assert_eq!(
-            actual.unwrap(),
-            "\nBLAH",
-            "str 'BLAH   ' should be '\\nBLAH'"
-        );
+        assert_eq!(actual.unwrap(), "\nBLAH", "str 'BLAH   ' should be '\\nBLAH'");
     }
 
     #[test]

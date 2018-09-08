@@ -4,21 +4,22 @@ extern crate error_chain;
 extern crate serde_derive;
 extern crate serde_json;
 
+extern crate ansi_term;
 extern crate chrono;
 
-use std::process::exit;
 use std::env;
+use std::process::exit;
 
 mod coda;
-mod options;
 mod errors;
-mod utils;
 mod json;
+mod options;
 mod tools;
+mod utils;
 
 use coda::Coda;
-use options::Options;
 use errors::*;
+use options::Options;
 
 fn run() -> Result<()> {
     let options = Options::parse_options(env::args().collect())
@@ -38,14 +39,10 @@ fn run() -> Result<()> {
         .collect::<Vec<_>>();
 
     let mut had_errors = false;
-    coda_list
-        .iter()
-        .by_ref()
-        .filter(|c| c.is_err())
-        .for_each(|c| {
-            println!("Error: {:?}", c);
-            had_errors = true
-        });
+    coda_list.iter().by_ref().filter(|c| c.is_err()).for_each(|c| {
+        println!("Error: {:?}", c);
+        had_errors = true
+    });
 
     if !had_errors {
         // println!("{:?}", coda_list);
@@ -80,8 +77,8 @@ fn run() -> Result<()> {
         } else if options.list_summary || options.list_all {
             coda_list.iter().for_each(|coda| {
                 if options.list_summary || options.list_all {
-                    tools::print_header(&mut std::io::stdout(), &coda);
-                    tools::print_footer(&mut std::io::stdout(), &coda);
+                    tools::print_header(&mut std::io::stdout(), &coda, options.colored);
+                    tools::print_footer(&mut std::io::stdout(), &coda, options.colored);
                 };
             });
         }

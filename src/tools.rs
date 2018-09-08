@@ -4,15 +4,16 @@ use json;
 use errors::*;
 use std::io::Write;
 
+use ansi_term::Colour::Blue;
+
 pub fn print_as_json(coda: &Coda) -> Result<()> {
     let j = json::to_json(coda).chain_err(|| "Could not make json")?;
     println!("{}", j);
     Ok(())
 }
 
-pub fn print_header<W: Write>(w: &mut W, coda: &Coda) {
-    let _ = writeln!(
-        w,
+pub fn print_header<W: Write>(w: &mut W, coda: &Coda, colored: bool) {
+    let mut str = format!(
         "-----------------  {:<20} -- {:<19} ------------------\n---- {} - {} - {} - {} {}{} -----",
         coda.old_balance.account_holder_name,
         coda.old_balance.account,
@@ -23,9 +24,14 @@ pub fn print_header<W: Write>(w: &mut W, coda: &Coda) {
         coda.old_balance.old_balance_sign.to_sign(),
         coda.old_balance.old_balance as f64 / 1000.0
     );
+
+    if colored {
+        str = Blue.paint(str).to_string();
+    }
+    let _ = w.write_all(str.as_bytes());
 }
 
-pub fn print_footer<W: Write>(w: &mut W, coda: &Coda) {
+pub fn print_footer<W: Write>(w: &mut W, coda: &Coda, _colored: bool) {
     let _ = writeln!(
         w,
         "<<<<<<<<<<<<<<<< {} - {}{}",
@@ -37,8 +43,8 @@ pub fn print_footer<W: Write>(w: &mut W, coda: &Coda) {
 
 #[cfg(test)]
 mod test_account {
-    use chrono::*;
     use super::*;
+    use chrono::*;
     use coda::*;
     use utils::*;
 
@@ -47,7 +53,7 @@ mod test_account {
         let coda = make_test_coda();
 
         let mut buf: Vec<u8> = Vec::new();
-        print_header(&mut buf, &coda);
+        print_header(&mut buf, &coda, false);
         let actual = String::from_utf8(buf);
         assert_eq!(actual.is_ok(), true);
         assert_eq!(
@@ -61,7 +67,7 @@ mod test_account {
         let coda = make_test_coda();
 
         let mut buf: Vec<u8> = Vec::new();
-        print_footer(&mut buf, &coda);
+        print_footer(&mut buf, &coda, false);
         let actual = String::from_utf8(buf);
         assert_eq!(actual.is_ok(), true);
         assert_eq!(actual.unwrap(), "<<<<<<<<<<<<<<<< 2018-04-03 - +200.5\n");

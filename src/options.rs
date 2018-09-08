@@ -13,6 +13,7 @@ pub struct Options {
     pub sort_by_ref: bool,
     pub list_summary: bool,
     pub list_all: bool,
+    pub colored: bool,
 }
 
 impl Options {
@@ -25,6 +26,7 @@ impl Options {
             sort_by_ref: false,
             list_summary: false,
             list_all: false,
+            colored: false,
         };
         {
             let mut ap = ArgumentParser::new();
@@ -38,6 +40,8 @@ impl Options {
             );
             ap.refer(&mut options.sort_by_ref)
                 .add_option(&["--sort-ref"], StoreTrue, "Sort by file reference");
+            ap.refer(&mut options.colored)
+                .add_option(&["--colored"], StoreTrue, "Display colored output");
             ap.refer(&mut options.list_summary).add_option(
                 &["--list-summary"],
                 StoreTrue,
@@ -110,6 +114,7 @@ mod test_options {
         assert_eq!(options.sort_by_ref, true);
         assert_eq!(options.encoding_label.is_some(), true);
         assert_eq!(options.encoding_label.unwrap(), "windows-1252");
+        assert_eq!(options.colored, false);
     }
 
     #[test]
@@ -126,5 +131,24 @@ mod test_options {
         assert_eq!(options.sort_by_ref, false);
         assert_eq!(options.encoding_label.is_some(), false);
         assert_eq!(options.list_summary, true);
+        assert_eq!(options.colored, false);
+    }
+
+    #[test]
+    fn parse_valid_params_list_summary_colored() {
+        let args = vec![
+            String::from("coda-rs"),
+            String::from("--list-summary"),
+            String::from("--colored"),
+            String::from("coda_file1.txt"),
+        ];
+        let options = Options::parse_options(args);
+        assert_eq!(options.is_ok(), true, "Returned options should be Ok");
+        let options = options.unwrap();
+        assert_eq!(options.json, false);
+        assert_eq!(options.sort_by_ref, false);
+        assert_eq!(options.encoding_label.is_some(), false);
+        assert_eq!(options.list_summary, true);
+        assert_eq!(options.colored, true);
     }
 }
