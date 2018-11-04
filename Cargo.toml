@@ -5,7 +5,7 @@ authors = ["Bernard Niset <bernard.niset@gmail.com>"]
 build = "build.rs"
 
 [dependencies]
-argparse = "0.2.1"
+clap = "2.32.0"
 error-chain = "0.10"
 chrono = "0.4.1"
 encoding = "0.2"
