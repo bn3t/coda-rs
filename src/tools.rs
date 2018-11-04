@@ -8,3 +8,9 @@ pub fn print_as_json(coda: &Coda) -> Result<()> {
     println!("{}", j);
     Ok(())
 }
+
+pub fn print_as_json_from_list(coda_list: &Vec<Coda>) -> Result<()> {
+    let j = json::to_json_from_list(coda_list).chain_err(|| "Could not make json")?;
+    println!("{}", j);
+    Ok(())
+}

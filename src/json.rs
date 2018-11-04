@@ -3,8 +3,8 @@ extern crate encoding;
 extern crate serde;
 extern crate serde_json;
 
-use errors::*;
 use coda::Coda;
+use errors::*;
 
 pub mod date_serde {
     use chrono::NaiveDate;
@@ -33,6 +33,10 @@ pub mod date_serde {
 
 pub fn to_json(coda: &Coda) -> Result<String> {
     Ok(serde_json::to_string_pretty(coda).chain_err(|| "Unable to generate json file")?)
+}
+
+pub fn to_json_from_list(coda_list: &Vec<Coda>) -> Result<String> {
+    Ok(serde_json::to_string_pretty(coda_list).chain_err(|| "Unable to generate json file")?)
 }
 
 #[cfg(test)]
@@ -88,6 +92,55 @@ mod test_json {
         };
 
         let j = to_json(&coda);
+
+        assert_eq!(j.is_ok(), true, "to_json should be ok");
+    }
+
+    #[test]
+    fn to_json_from_list_valid() {
+        let coda_list = vec![Coda {
+            header: Header {
+                creation_date: NaiveDate::from_ymd(2018, 4, 2),
+                bank_id: String::from("bank_id"),
+                duplicate: false,
+                file_reference: String::from("file_reference"),
+                name_addressee: String::from("name_addressee"),
+                bic: String::from("bic"),
+                company_id: String::from("company_id"),
+                reference: String::from("reference"),
+                related_reference: String::from("related_reference"),
+                version: 1,
+            },
+            old_balance: OldBalance {
+                account: Account::IBANBelgianAccountNumber {
+                    number: String::from("BE3333"),
+                    currency: String::from("EUR"),
+                },
+                old_sequence: String::from("old_sequence"),
+                old_balance_sign: Sign::Credit,
+                old_balance: 100000,
+                old_balance_date: NaiveDate::from_ymd(2018, 4, 1),
+                account_holder_name: String::from("account_holder_name"),
+                account_description: String::from("account_description"),
+                coda_sequence: String::from("coda_sequence"),
+            },
+            movements: Vec::new(),
+            information: Vec::new(),
+            free_communications: Vec::new(),
+            new_balance: NewBalance {
+                new_sequence: String::from("new_sequence"),
+                new_balance_sign: Sign::Credit,
+                new_balance: 200000,
+                new_balance_date: NaiveDate::from_ymd(2018, 4, 3),
+            },
+            trailer: Trailer {
+                number_records: 123,
+                total_debit: 4321000,
+                total_credit: 123400,
+            },
+        }];
+
+        let j = to_json_from_list(&coda_list);
 
         assert_eq!(j.is_ok(), true, "to_json should be ok");
     }
