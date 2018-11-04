@@ -16,22 +16,9 @@ pub mod date_serde {
     {
         return s.serialize_str(&format!("{}", date.format("%Y-%m-%d")));
     }
-
-    // pub fn deserialize<'de, D>(deserializer: D) -> Result<NaiveDate>, D::Error>
-    // where
-    //     D: Deserializer<'de>,
-    // {
-    //     let s: Option<String> = Option::deserialize(deserializer)?;
-    //     if let Some(s) = s {
-    //         return Ok(Some(NaiveDate::parse_from_str(&s, "%Y-%m-%d")
-    //             .map_err(serde::de::Error::custom)?));
-    //     }
-
-    //     Ok(None)
-    // }
 }
 
-pub fn to_json(coda: &Coda) -> Result<String> {
+pub fn _to_json(coda: &Coda) -> Result<String> {
     Ok(serde_json::to_string_pretty(coda).chain_err(|| "Unable to generate json file")?)
 }
 
@@ -91,7 +78,7 @@ mod test_json {
             },
         };
 
-        let j = to_json(&coda);
+        let j = _to_json(&coda);
 
         assert_eq!(j.is_ok(), true, "to_json should be ok");
     }
@@ -142,6 +129,6 @@ mod test_json {
 
         let j = to_json_from_list(&coda_list);
 
-        assert_eq!(j.is_ok(), true, "to_json should be ok");
+        assert_eq!(j.is_ok(), true, "to_json_from_list should be ok");
     }
 }
