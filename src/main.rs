@@ -6,19 +6,21 @@ extern crate serde_json;
 
 extern crate chrono;
 
-use std::process::exit;
+extern crate clap;
+
 use std::env;
+use std::process::exit;
 
 mod coda;
-mod options;
 mod errors;
-mod utils;
 mod json;
+mod options;
 mod tools;
+mod utils;
 
 use coda::Coda;
-use options::Options;
 use errors::*;
+use options::Options;
 
 fn run() -> Result<()> {
     let options = Options::parse_options(env::args().collect())
@@ -34,18 +36,13 @@ fn run() -> Result<()> {
                 println!("Parsing file: {}", f);
             }
             Coda::parse(&f, encoding_label)
-        })
-        .collect::<Vec<_>>();
+        }).collect::<Vec<_>>();
 
     let mut had_errors = false;
-    coda_list
-        .iter()
-        .by_ref()
-        .filter(|c| c.is_err())
-        .for_each(|c| {
-            println!("Error: {:?}", c);
-            had_errors = true
-        });
+    coda_list.iter().by_ref().filter(|c| c.is_err()).for_each(|c| {
+        println!("Error: {:?}", c);
+        had_errors = true
+    });
 
     if !had_errors {
         // println!("{:?}", coda_list);
@@ -74,9 +71,7 @@ fn run() -> Result<()> {
         }
 
         if options.json {
-            for coda in coda_list {
-                tools::print_as_json(&coda).chain_err(|| "Error while printing json")?;
-            }
+            tools::print_as_json_from_list(&coda_list).chain_err(|| "Error while printing json")?;
         }
         Ok(())
     } else {

@@ -1,9 +1,6 @@
-extern crate argparse;
-
-use std::io::{stderr, stdout};
 use std::result::Result;
 
-use self::argparse::{ArgumentParser, List, Print, StoreOption, StoreTrue};
+use clap::{App, AppSettings, Arg, ErrorKind, SubCommand};
 
 pub struct Options {
     pub coda_filenames: Vec<String>,
@@ -22,52 +19,63 @@ impl Options {
             encoding_label: None,
             sort_by_ref: false,
         };
-        {
-            let mut ap = ArgumentParser::new();
-            ap.set_description("Parse coda files");
-            ap.refer(&mut options.json).add_option(
-                &["-j", "--json"],
-                StoreTrue,
-                "Convert coda files to json",
-            );
-            ap.refer(&mut options.debug).add_option(
-                &["-d", "--debug"],
-                StoreTrue,
-                "Debug parsed coda data on the console",
-            );
-            ap.refer(&mut options.sort_by_ref).add_option(
-                &["--sort-ref"],
-                StoreTrue,
-                "Sort by file reference",
-            );
-            ap.refer(&mut options.encoding_label).add_option(
-                &["-e", "--encoding"],
-                StoreOption,
-                "Encoding for reading, use a whatwg label - See https://encoding.spec.whatwg.org/#concept-encoding-get (default to utf-8)",
-            );
-            ap.refer(&mut options.coda_filenames)
-                .add_argument("coda_files", List, "List of Coda files to parse")
-                .required();
-            ap.add_option(
-                &["-v", "--version"],
-                Print(
-                    format!(
-                        "{} {} ({} {})",
-                        env!("CARGO_PKG_NAME"),
-                        env!("CARGO_PKG_VERSION"),
-                        env!("GIT_COMMIT"),
-                        env!("BUILD_DATE")
-                    ).to_string(),
-                ),
-                "Show version",
-            );
-            match ap.parse(args, &mut stdout(), &mut stderr()) {
-                Ok(_) => {}
-                Err(err) => {
-                    return Err(err);
+
+        let matches = App::new("Parse coda files")
+            .version(env!("CARGO_PKG_VERSION"))
+            .author("Bernard Niset")
+            .about(env!("CARGO_PKG_DESCRIPTION"))
+            .setting(AppSettings::SubcommandRequiredElseHelp)
+            .after_help(format!("Build: {} - {}", env!("GIT_COMMIT"), env!("BUILD_DATE")).as_str())
+            .arg(
+                Arg::with_name("debug")
+                    .long("debug")
+                    .short("d")
+                    .required(false)
+                    .takes_value(false)
+                    .help("Debug parsed coda data on the console"),
+            ).arg(
+                Arg::with_name("encoding")
+                    .long("encoding")
+                    .short("e")
+                    .required(false)
+                    .takes_value(true)
+                    .help("Encoding for reading, use a whatwg label - See https://encoding.spec.whatwg.org/#concept-encoding-get (default to utf-8)"),
+            )
+            .arg(
+                Arg::with_name("sort-ref")
+                        .long("sort-ref")
+                        .help("Sort by file reference")
+                        .required(false)
+                        .takes_value(false)
+            )
+            .subcommand(
+                SubCommand::with_name("json").about("Convert coda files to json")
+                    .arg(Arg::with_name("files").takes_value(true).multiple(true).help("List of Coda files to parse"))
+            ).get_matches_from_safe(args);
+        if let Ok(matches) = matches {
+            options.encoding_label = matches.value_of("encoding").map(|v| String::from(v));
+            options.sort_by_ref = matches.is_present("sort-ref");
+            match matches.subcommand() {
+                ("json", Some(sub_m)) => {
+                    options.json = true;
+
+                    for input in sub_m.values_of("files").unwrap() {
+                        options.coda_filenames.push(String::from(input));
+                    }
                 }
+                _ => (),
             }
+        } else {
+            let err = matches.err().unwrap();
+            match err.kind {
+                ErrorKind::HelpDisplayed => {
+                    eprintln!("{}", err.message);
+                }
+                _ => (),
+            }
+            return Err(1);
         }
+
         Ok(options)
     }
 }
@@ -77,21 +85,21 @@ mod test_options {
     use super::Options;
 
     #[test]
-    fn parse_verbose() {
-        let args = vec![String::from("coda-rs"), String::from("-v")];
+    fn parse_help() {
+        let args = vec![String::from("coda-rs"), String::from("-h")];
         let options = Options::parse_options(args);
         assert_eq!(options.is_err(), true);
-        assert_eq!(options.err(), Some(0));
+        assert_eq!(options.err(), Some(1));
     }
 
     #[test]
     fn parse_valid_params_all_params() {
         let args = vec![
             String::from("coda-rs"),
-            String::from("-j"),
-            String::from("--sort-ref"),
             String::from("-e"),
             String::from("windows-1252"),
+            String::from("--sort-ref"),
+            String::from("json"),
             String::from("coda_file1.txt"),
             String::from("coda_file2.txt"),
             String::from("coda_file3.txt"),
