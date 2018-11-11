@@ -20,7 +20,7 @@ mod utils;
 
 use coda::Coda;
 use errors::*;
-use options::Options;
+use options::*;
 
 fn run() -> Result<()> {
     let options = Options::parse_options(env::args().collect())
@@ -70,7 +70,7 @@ fn run() -> Result<()> {
             coda_list.sort_by(|a, b| a.header.file_reference.cmp(&b.header.file_reference));
         }
 
-        if options.json {
+        if options.command == Some(Command::Json) {
             tools::print_as_json_from_list(&coda_list).chain_err(|| "Error while printing json")?;
         }
         Ok(())

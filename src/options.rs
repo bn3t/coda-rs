@@ -2,9 +2,13 @@ use std::result::Result;
 
 use clap::{App, AppSettings, Arg, ErrorKind, SubCommand};
 
+#[derive(PartialEq, Debug)]
+pub enum Command {
+    Json,
+}
 pub struct Options {
+    pub command: Option<Command>,
     pub coda_filenames: Vec<String>,
-    pub json: bool,
     pub debug: bool,
     pub encoding_label: Option<String>,
     pub sort_by_ref: bool,
@@ -13,11 +17,11 @@ pub struct Options {
 impl Options {
     pub fn parse_options(args: Vec<String>) -> Result<Options, i32> {
         let mut options = Options {
-            coda_filenames: vec![],
-            json: false,
+            command: None,
             debug: false,
             encoding_label: None,
             sort_by_ref: false,
+            coda_filenames: vec![],
         };
 
         let matches = App::new("Parse coda files")
@@ -57,7 +61,7 @@ impl Options {
             options.sort_by_ref = matches.is_present("sort-ref");
             match matches.subcommand() {
                 ("json", Some(sub_m)) => {
-                    options.json = true;
+                    options.command = Some(Command::Json);
 
                     for input in sub_m.values_of("files").unwrap() {
                         options.coda_filenames.push(String::from(input));
@@ -82,7 +86,7 @@ impl Options {
 
 #[cfg(test)]
 mod test_options {
-    use super::Options;
+    use super::*;
 
     #[test]
     fn parse_help() {
@@ -111,7 +115,7 @@ mod test_options {
             options.coda_filenames,
             vec!["coda_file1.txt", "coda_file2.txt", "coda_file3.txt"]
         );
-        assert_eq!(options.json, true);
+        assert_eq!(options.command.unwrap(), Command::Json);
         assert_eq!(options.sort_by_ref, true);
         assert_eq!(options.encoding_label.is_some(), true);
         assert_eq!(options.encoding_label.unwrap(), "windows-1252");
