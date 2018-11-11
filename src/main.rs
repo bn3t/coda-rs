@@ -45,21 +45,6 @@ fn run() -> Result<()> {
     });
 
     if !had_errors {
-        // println!("{:?}", coda_list);
-
-        // if options.debug {
-        //     coda_list.
-        //     println!("header=[{:?}]", coda.header);
-        //     println!("old_balance=[{:?}]", coda.old_balance);
-        //     println!("movements=[{:?}]", coda.movements);
-
-        //     println!("information=[{:?}]", coda.information);
-
-        //     println!("free_communications=[{:?}]", coda.free_communications);
-        //     println!("New balance: {:?}", coda.new_balance);
-        //     println!("Trailer: {:?}", coda.trailer);
-        // }
-
         let mut coda_list = coda_list
             .into_iter()
             .filter(|coda| coda.is_ok())
