@@ -13,8 +13,10 @@ use coda::encoding::DecoderTrap;
 use json::date_serde;
 
 use errors::*;
-use utils::{parse_date, parse_duplicate, parse_field, parse_sign, parse_str, parse_str_append, parse_str_trim, Sign,
-            StringUtils, parse_u32, parse_u64, parse_u8};
+use utils::{
+    parse_date, parse_duplicate, parse_field, parse_sign, parse_str, parse_str_append, parse_str_trim, parse_u32,
+    parse_u64, parse_u8, Sign, StringUtils,
+};
 
 #[derive(PartialEq, Debug, Serialize)]
 pub enum Account {
@@ -87,7 +89,8 @@ pub struct Coda {
 
 #[derive(Debug, Serialize)]
 pub struct Header {
-    #[serde(with = "date_serde")] pub creation_date: NaiveDate,
+    #[serde(with = "date_serde")]
+    pub creation_date: NaiveDate,
     pub bank_id: String,
     pub duplicate: bool,
     pub file_reference: String,
@@ -105,24 +108,27 @@ pub struct OldBalance {
     pub old_sequence: String, // ': (slice(2, 5), str),
     // pub account_currency: String, // ': (slice(5, 42), str),
     pub old_balance_sign: Sign,
-    pub old_balance: u64,                                          // ': (slice(43, 58), _amount),
-    #[serde(with = "date_serde")] pub old_balance_date: NaiveDate, // ': (slice(58, 64), _date),
-    pub account_holder_name: String,                               // ': (slice(64, 90), _string),
-    pub account_description: String,                               // ': (slice(90, 125), _string),
-    pub coda_sequence: String,                                     // ': (slice(125, 128), str),
+    pub old_balance: u64, // ': (slice(43, 58), _amount),
+    #[serde(with = "date_serde")]
+    pub old_balance_date: NaiveDate, // ': (slice(58, 64), _date),
+    pub account_holder_name: String, // ': (slice(64, 90), _string),
+    pub account_description: String, // ': (slice(90, 125), _string),
+    pub coda_sequence: String, // ': (slice(125, 128), str),
 }
 
 #[derive(Debug, Serialize)]
 pub struct Movement {
-    pub sequence: String,                                    //': (slice(2, 6), str),
-    pub detail_sequence: String,                             //': (slice(6, 10), str),
-    pub bank_reference: String,                              //': (slice(10, 31), str),
-    pub amount: u64,                                         //': (slice(31, 47), _amount),
-    #[serde(with = "date_serde")] pub value_date: NaiveDate, //': (slice(47, 53), _date),
-    pub transaction_code: String,                            //': (slice(53, 61), str),
-    pub communication: String,                               //': (slice(61, 115), str),
-    #[serde(with = "date_serde")] pub entry_date: NaiveDate, //': (slice(115, 121), _date),
-    pub statement_number: String,                            //': (slice(121, 124), str),
+    pub sequence: String,        //': (slice(2, 6), str),
+    pub detail_sequence: String, //': (slice(6, 10), str),
+    pub bank_reference: String,  //': (slice(10, 31), str),
+    pub amount: u64,             //': (slice(31, 47), _amount),
+    #[serde(with = "date_serde")]
+    pub value_date: NaiveDate, //': (slice(47, 53), _date),
+    pub transaction_code: String, //': (slice(53, 61), str),
+    pub communication: String,   //': (slice(61, 115), str),
+    #[serde(with = "date_serde")]
+    pub entry_date: NaiveDate, //': (slice(115, 121), _date),
+    pub statement_number: String, //': (slice(121, 124), str),
     // type 2
     //pub _communication: String,     //': (slice(10, 63), str),
     pub customer_reference: Option<String>, //': (slice(63, 98), _string),
@@ -158,8 +164,9 @@ pub struct NewBalance {
     pub new_sequence: String, //': (slice(1, 4), str),
     // We don't store the account coming from the new balance
     pub new_balance_sign: Sign,
-    pub new_balance: u64,                                          //': (slice(41, 57), _amount),
-    #[serde(with = "date_serde")] pub new_balance_date: NaiveDate, //': (slice(57, 63), _date),
+    pub new_balance: u64, //': (slice(41, 57), _amount),
+    #[serde(with = "date_serde")]
+    pub new_balance_date: NaiveDate, //': (slice(57, 63), _date),
 }
 
 #[derive(Debug, Serialize)]
@@ -219,13 +226,15 @@ impl Movement {
         Ok(Movement {
             sequence: parse_field(line, 2..6, parse_str).chain_err(|| "Could not parse sequence")?,
             detail_sequence: parse_field(line, 6..10, parse_str).chain_err(|| "Could not parse detail_sequence")?,
-            bank_reference: parse_field(line, 10..31, parse_str).chain_err(|| "Could not parse bank_reference")?,
+            bank_reference: parse_field(line, 10..31, parse_str_trim).chain_err(|| "Could not parse bank_reference")?,
             amount: parse_field(line, 31..47, parse_u64).chain_err(|| "Could not parse amount")?,
             value_date: parse_field(line, 47..53, parse_date).chain_err(|| "Could not parse value_date")?,
             transaction_code: parse_field(line, 53..61, parse_str).chain_err(|| "Could not parse transaction_code")?,
-            communication: parse_field(line, 62..115, parse_str_trim).chain_err(|| "Could not parse transaction_code")?,
+            communication: parse_field(line, 62..115, parse_str_trim)
+                .chain_err(|| "Could not parse transaction_code")?,
             entry_date: parse_field(line, 115..121, parse_date).chain_err(|| "Could not parse entry_date")?,
-            statement_number: parse_field(line, 121..124, parse_str).chain_err(|| "Could not parse statement_number")?,
+            statement_number: parse_field(line, 121..124, parse_str)
+                .chain_err(|| "Could not parse statement_number")?,
             customer_reference: None,
             counterparty_bic: None,
             r_transaction: None,
@@ -249,7 +258,8 @@ impl Movement {
             Some(parse_field(line, 117..121, parse_str_trim).chain_err(|| "Could not parse category_purpose")?);
         self.purpose = Some(parse_field(line, 121..125, parse_str_trim).chain_err(|| "Could not parse purpose")?);
 
-        let communication = parse_field(line, 10..63, parse_str_append).chain_err(|| "Could not parse communication")?;
+        let communication =
+            parse_field(line, 10..63, parse_str_append).chain_err(|| "Could not parse communication")?;
         self.communication.push_str(&communication);
 
         Ok(())
@@ -261,7 +271,8 @@ impl Movement {
         self.counterparty_account =
             Some(parse_field(line, 47..82, parse_str_trim).chain_err(|| "Could not parse counterparty_account")?);
 
-        let communication = parse_field(line, 82..125, parse_str_append).chain_err(|| "Could not parse communication")?;
+        let communication =
+            parse_field(line, 82..125, parse_str_append).chain_err(|| "Could not parse communication")?;
         self.communication.push_str(&communication);
 
         Ok(())
@@ -277,19 +288,22 @@ impl Information {
             transaction_code: parse_field(line, 31..39, parse_str).chain_err(|| "Could not parse detail_sequence")?,
             communication_structure: parse_field(line, 39..40, parse_communicationstructure)
                 .chain_err(|| "Could not parse communication_structure")?,
-            communication: parse_field(line, 40..113, parse_str_trim).chain_err(|| "Could not parse detail_sequence")?,
+            communication: parse_field(line, 40..113, parse_str_trim)
+                .chain_err(|| "Could not parse detail_sequence")?,
         })
     }
 
     pub fn parse_type2(&mut self, line: &str) -> Result<()> {
-        let communication = parse_field(line, 10..115, parse_str_append).chain_err(|| "Could not parse communication")?;
+        let communication =
+            parse_field(line, 10..115, parse_str_append).chain_err(|| "Could not parse communication")?;
         self.communication.push_str(&communication);
 
         Ok(())
     }
 
     pub fn parse_type3(&mut self, line: &str) -> Result<()> {
-        let communication = parse_field(line, 10..100, parse_str_append).chain_err(|| "Could not parse communication")?;
+        let communication =
+            parse_field(line, 10..100, parse_str_append).chain_err(|| "Could not parse communication")?;
         self.communication.push_str(&communication);
 
         Ok(())
@@ -333,9 +347,7 @@ impl Coda {
         let mut reader = BufReader::new(f);
         let mut buf = Vec::new();
 
-        reader
-            .read_to_end(&mut buf)
-            .chain_err(|| "Error reading into buffer")?;
+        reader.read_to_end(&mut buf).chain_err(|| "Error reading into buffer")?;
 
         let decoded = encoding.decode(&buf, DecoderTrap::Strict).unwrap();
         let cursor = Cursor::new(decoded);
@@ -359,8 +371,9 @@ impl Coda {
                 }
                 "2" => match line.get_range(1..2).as_str() {
                     "1" => {
-                        let movement = Some(Movement::parse_type1(&line)
-                            .chain_err(|| -> Error { format!("Could not parse Movement (line {})", num + 1).into() })?);
+                        let movement = Some(Movement::parse_type1(&line).chain_err(|| -> Error {
+                            format!("Could not parse Movement (line {})", num + 1).into()
+                        })?);
                         movements.push(movement.unwrap());
                     }
                     "2" => {
@@ -381,8 +394,10 @@ impl Coda {
                 },
                 "3" => match line.get_range(1..2).as_str() {
                     "1" => {
-                        let information = Some(Information::parse_type1(&line)
-                            .chain_err(|| -> Error { "Could not parse Information".into() })?);
+                        let information = Some(
+                            Information::parse_type1(&line)
+                                .chain_err(|| -> Error { "Could not parse Information".into() })?,
+                        );
                         informations.push(information.unwrap());
                     }
                     "2" => {
@@ -403,8 +418,10 @@ impl Coda {
                 },
                 "4" => match line.get_range(6..10).as_str() {
                     "0000" => {
-                        let free_communication = Some(FreeCommunication::parse_line1(&line)
-                            .chain_err(|| -> Error { "Could not parse FreeCommunication".into() })?);
+                        let free_communication = Some(
+                            FreeCommunication::parse_line1(&line)
+                                .chain_err(|| -> Error { "Could not parse FreeCommunication".into() })?,
+                        );
                         free_communications.push(free_communication.unwrap());
                     }
                     _ => {
@@ -423,7 +440,10 @@ impl Coda {
                 _ => {}
             };
         }
-        if header.is_some() && old_balance.is_some() && old_balance.is_some() && new_balance.is_some()
+        if header.is_some()
+            && old_balance.is_some()
+            && old_balance.is_some()
+            && new_balance.is_some()
             && trailer.is_some()
         {
             Ok(Coda {
@@ -479,15 +499,10 @@ mod test_parse_header {
             NaiveDate::from_ymd(2018, 3, 29),
             "creation_date should be 29/03/2018"
         );
-        assert_eq!(
-            actual.bank_id,
-            String::from("725"),
-            "bank_id should be 72505"
-        );
+        assert_eq!(actual.bank_id, String::from("725"), "bank_id should be 72505");
         assert_eq!(actual.duplicate, false, "duplicate should be false");
         assert_eq!(
-            actual.file_reference,
-            "00099449  ",
+            actual.file_reference, "00099449  ",
             "File reference should be '00099449  '"
         );
         assert_eq!(
@@ -496,17 +511,9 @@ mod test_parse_header {
             // // "address should be 'Testgebruiker21'"
         );
         assert_eq!(actual.bic, "KREDBEBB", "bic should be 'KREDBEBB'");
-        assert_eq!(
-            actual.company_id,
-            "00630366277",
-            "company_id should be '00630366277'"
-        );
+        assert_eq!(actual.company_id, "00630366277", "company_id should be '00630366277'");
         assert_eq!(actual.reference, "", "reference should be ''");
-        assert_eq!(
-            actual.related_reference,
-            "",
-            "related_reference should be ''"
-        );
+        assert_eq!(actual.related_reference, "", "related_reference should be ''");
         assert_eq!(actual.version, 2, "version should be '2'");
     }
 }
@@ -516,9 +523,9 @@ mod test_parse_header {
 mod test_parse_oldbalance {
     use chrono::NaiveDate;
 
-    use utils::Sign;
-    use super::OldBalance;
     use super::Account;
+    use super::OldBalance;
+    use utils::Sign;
 
     #[test]
     fn parse_oldbalance_valid() {
@@ -550,28 +557,22 @@ mod test_parse_oldbalance {
             "creation_date should be 06/12/2006"
         );
         assert_eq!(
-            actual.account_holder_name,
-            "Testgebruiker21",
+            actual.account_holder_name, "Testgebruiker21",
             "account_currency should be 'Testgebruiker21'"
         );
         assert_eq!(
-            actual.account_description,
-            "KBC-Bedrijfsrekening",
+            actual.account_description, "KBC-Bedrijfsrekening",
             "account_currency should be 'KBC-Bedrijfsrekening'"
         );
-        assert_eq!(
-            actual.coda_sequence,
-            "001",
-            "account_currency should be '001'"
-        );
+        assert_eq!(actual.coda_sequence, "001", "account_currency should be '001'");
     }
 }
 
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod test_parse_account {
-    use super::Account;
     use super::parse_account;
+    use super::Account;
 
     #[test]
     fn parse_account_valid_BelgianAccountNumber() {
@@ -642,8 +643,8 @@ mod test_parse_account {
 mod test_parse_newbalance {
     use chrono::NaiveDate;
 
-    use utils::Sign;
     use super::NewBalance;
+    use utils::Sign;
 
     #[test]
     fn parse_newbalance_valid() {
@@ -659,11 +660,7 @@ mod test_parse_newbalance {
             Sign::Credit,
             "new_balance_sign should be 'Credit'"
         );
-        assert_eq!(
-            actual.new_balance,
-            9405296990,
-            "new_balance should be '9405296990'"
-        );
+        assert_eq!(actual.new_balance, 9405296990, "new_balance should be '9405296990'");
         assert_eq!(
             actual.new_balance_date,
             NaiveDate::from_ymd(2006, 12, 07),
@@ -685,16 +682,8 @@ mod test_parse_trailer {
         assert_eq!(actual.is_ok(), true, "Trailer shoud be ok");
         let actual = actual.unwrap();
         assert_eq!(actual.number_records, 260, "number_records should be '260'");
-        assert_eq!(
-            actual.total_debit,
-            3085871600,
-            "total_debit should be '3085871600'"
-        );
-        assert_eq!(
-            actual.total_credit,
-            12491168590,
-            "total_credit should be '12491168590'"
-        );
+        assert_eq!(actual.total_debit, 3085871600, "total_debit should be '3085871600'");
+        assert_eq!(actual.total_credit, 12491168590, "total_credit should be '12491168590'");
     }
 }
 
@@ -714,29 +703,19 @@ mod test_parse_movement {
         assert_eq!(actual.is_ok(), true, "Movement shoud be ok");
         let actual = actual.unwrap();
         assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
+        assert_eq!(actual.detail_sequence, "0000", "detail_sequence should be '0000'");
         assert_eq!(
-            actual.detail_sequence,
-            "0000",
-            "detail_sequence should be '0000'"
-        );
-        assert_eq!(
-            actual.bank_reference,
-            "EPIB00048 AWIUBTKAPUO",
+            actual.bank_reference, "EPIB00048 AWIUBTKAPUO",
             "bank_reference should be 'EPIB00048 AWIUBTKAPUO'"
         );
-        assert_eq!(
-            actual.amount,
-            1000000002578250,
-            "amount should be '1000000002578250'"
-        );
+        assert_eq!(actual.amount, 1000000002578250, "amount should be '1000000002578250'");
         assert_eq!(
             actual.value_date,
             NaiveDate::from_ymd(2006, 12, 6),
             "value_date should be '06/12/2006'"
         );
         assert_eq!(
-            actual.transaction_code,
-            "00799000",
+            actual.transaction_code, "00799000",
             "bank_reference should be '00799000'"
         );
         assert_eq!(
@@ -809,22 +788,10 @@ mod test_parse_movement {
             "",
             "customer_reference should be ''"
         );
-        assert_eq!(
-            actual.counterparty_bic.unwrap(),
-            "",
-            "counterparty_bic should be ''"
-        );
-        assert_eq!(
-            actual.r_transaction.unwrap(),
-            "",
-            "r_transaction should be ''"
-        );
+        assert_eq!(actual.counterparty_bic.unwrap(), "", "counterparty_bic should be ''");
+        assert_eq!(actual.r_transaction.unwrap(), "", "r_transaction should be ''");
         assert_eq!(actual.r_reason.unwrap(), "", "r_reason should be ''");
-        assert_eq!(
-            actual.category_purpose.unwrap(),
-            "",
-            "category_purpose should be ''"
-        );
+        assert_eq!(actual.category_purpose.unwrap(), "", "category_purpose should be ''");
         assert_eq!(actual.purpose.unwrap(), "", "purpose should be ''");
 
         assert_eq!(
@@ -879,10 +846,7 @@ mod test_parse_freecommunication {
         let line = encoding.decode(line, DecoderTrap::Strict).unwrap();
         let cursor = io::Cursor::new(line);
         let mut lines_iter = cursor.lines().map(|l| l.unwrap());
-        assert_eq!(
-            lines_iter.next(),
-            Some(String::from("D\'INVESTISSEMENT N° 123"))
-        );
+        assert_eq!(lines_iter.next(), Some(String::from("D\'INVESTISSEMENT N° 123")));
     }
 
     #[test]
@@ -894,11 +858,7 @@ mod test_parse_freecommunication {
         assert_eq!(actual.is_ok(), true, "FreeCommunication shoud be ok");
         let actual = actual.unwrap();
         assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
-        assert_eq!(
-            actual.detail_sequence,
-            "0000",
-            "detail_sequence should be '0000'"
-        );
+        assert_eq!(actual.detail_sequence, "0000", "detail_sequence should be '0000'");
         assert_eq!(
             actual.text,
             "LINE 1 FREE COMMUNICATION                                                      X",
@@ -915,14 +875,9 @@ mod test_parse_freecommunication {
         assert_eq!(actual.is_ok(), true, "FreeCommunication shoud be ok");
         let actual = actual.unwrap();
         assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
+        assert_eq!(actual.detail_sequence, "0000", "detail_sequence should be '0000'");
         assert_eq!(
-            actual.detail_sequence,
-            "0000",
-            "detail_sequence should be '0000'"
-        );
-        assert_eq!(
-            actual.text,
-            "LINE 1 FREE COMMUNICATION",
+            actual.text, "LINE 1 FREE COMMUNICATION",
             "communication should be 'LINE 1 FREE COMMUNICATION'"
         );
     }
@@ -939,11 +894,7 @@ mod test_parse_freecommunication {
 
         assert_eq!(result.is_ok(), true, "Result should be ok");
         assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
-        assert_eq!(
-            actual.detail_sequence,
-            "0000",
-            "detail_sequence should be '0000'"
-        );
+        assert_eq!(actual.detail_sequence, "0000", "detail_sequence should be '0000'");
         assert_eq!(
             actual.text,
             "LINE 1 FREE COMMUNICATION                                                      X\nLINE 2 FREE COMMUNICATION                                                      Y",
@@ -963,14 +914,9 @@ mod test_parse_freecommunication {
 
         assert_eq!(result.is_ok(), true, "Result should be ok");
         assert_eq!(actual.sequence, "0001", "sequence should be '0001'");
+        assert_eq!(actual.detail_sequence, "0000", "detail_sequence should be '0000'");
         assert_eq!(
-            actual.detail_sequence,
-            "0000",
-            "detail_sequence should be '0000'"
-        );
-        assert_eq!(
-            actual.text,
-            "LINE 1 FREE COMMUNICATION\nLINE 2 FREE COMMUNICATION",
+            actual.text, "LINE 1 FREE COMMUNICATION\nLINE 2 FREE COMMUNICATION",
             "communication should be 'LINE 1 FREE COMMUNICATION\nLINE 2 FREE COMMUNICATION'"
         );
     }
@@ -979,9 +925,9 @@ mod test_parse_freecommunication {
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod test_parse_information {
-    use super::Information;
-    use super::CommunicationStructure;
     use super::parse_communicationstructure;
+    use super::CommunicationStructure;
+    use super::Information;
 
     #[test]
     fn parse_information_type1_valid() {
@@ -992,26 +938,16 @@ mod test_parse_information {
         assert_eq!(actual.is_ok(), true, "Information shoud be ok");
         let actual = actual.unwrap();
         assert_eq!(actual.sequence, "0007", "sequence should be '0007'");
+        assert_eq!(actual.detail_sequence, "0006", "detail_sequence should be '0006'");
         assert_eq!(
-            actual.detail_sequence,
-            "0006",
-            "detail_sequence should be '0006'"
-        );
-        assert_eq!(
-            actual.bank_reference,
-            "IHMI00001 TBOGOVOVERS",
+            actual.bank_reference, "IHMI00001 TBOGOVOVERS",
             "bank_reference should be 'IHMI00001 TBOGOVOVERS'"
         );
         assert_eq!(
-            actual.transaction_code,
-            "50113000",
+            actual.transaction_code, "50113000",
             "transaction_code should be '50113000'"
         );
-        assert_eq!(
-            actual.communication,
-            "001TPF CONSULTING",
-            "communication should be ''"
-        );
+        assert_eq!(actual.communication, "001TPF CONSULTING", "communication should be ''");
     }
 
     #[test]
@@ -1042,8 +978,7 @@ mod test_parse_information {
 
         assert_eq!(result.is_ok(), true);
         assert_eq!(
-            actual.communication,
-            "001TPF CONSULTING\nTHIRD LINE",
+            actual.communication, "001TPF CONSULTING\nTHIRD LINE",
             "communication should be '001TPF CONSULTING\nTHIRD LINE'"
         );
     }
