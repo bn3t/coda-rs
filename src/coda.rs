@@ -349,7 +349,7 @@ impl Coda {
 
         reader.read_to_end(&mut buf).chain_err(|| "Error reading into buffer")?;
 
-        let decoded = encoding.decode(&buf, DecoderTrap::Strict).unwrap();
+        let decoded = encoding.decode(&buf, DecoderTrap::Strict).map_err(|e| format!("Unable to decode {} with encoding {}: {}", coda_filename, encoding_label, e))?;
         let cursor = Cursor::new(decoded);
 
         let mut header: Option<Header> = None;
