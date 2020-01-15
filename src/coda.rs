@@ -693,6 +693,7 @@ mod test_parse_trailer {
 mod test_parse_movement {
 
     use chrono::NaiveDate;
+    use utils::Sign;
 
     use super::Movement;
 
@@ -710,7 +711,8 @@ mod test_parse_movement {
             actual.bank_reference, "EPIB00048 AWIUBTKAPUO",
             "bank_reference should be 'EPIB00048 AWIUBTKAPUO'"
         );
-        assert_eq!(actual.amount, 1000000002578250, "amount should be '1000000002578250'");
+        assert_eq!(actual.amount_sign, Sign::Debit, "amount_sign should be 'Debit'");
+        assert_eq!(actual.amount, 2578250, "amount should be '1000000002578250'");
         assert_eq!(
             actual.value_date,
             NaiveDate::from_ymd(2006, 12, 6),
