@@ -121,7 +121,8 @@ pub struct Movement {
     pub sequence: String,        //': (slice(2, 6), str),
     pub detail_sequence: String, //': (slice(6, 10), str),
     pub bank_reference: String,  //': (slice(10, 31), str),
-    pub amount: u64,             //': (slice(31, 47), _amount),
+    pub amount_sign: Sign,
+    pub amount: u64,             //': (slice(32, 47), _amount),
     #[serde(with = "date_serde")]
     pub value_date: NaiveDate, //': (slice(47, 53), _date),
     pub transaction_code: String, //': (slice(53, 61), str),
@@ -227,7 +228,8 @@ impl Movement {
             sequence: parse_field(line, 2..6, parse_str).chain_err(|| "Could not parse sequence")?,
             detail_sequence: parse_field(line, 6..10, parse_str).chain_err(|| "Could not parse detail_sequence")?,
             bank_reference: parse_field(line, 10..31, parse_str_trim).chain_err(|| "Could not parse bank_reference")?,
-            amount: parse_field(line, 31..47, parse_u64).chain_err(|| "Could not parse amount")?,
+            amount_sign: parse_field(line, 31..32, parse_sign).chain_err(|| "Could not parse amount")?,
+            amount: parse_field(line, 32..47, parse_u64).chain_err(|| "Could not parse amount")?,
             value_date: parse_field(line, 47..53, parse_date).chain_err(|| "Could not parse value_date")?,
             transaction_code: parse_field(line, 53..61, parse_str).chain_err(|| "Could not parse transaction_code")?,
             communication: parse_field(line, 62..115, parse_str_trim)
