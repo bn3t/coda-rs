@@ -268,9 +268,9 @@ impl Movement {
     }
 
     pub fn parse_type3(&mut self, line: &str) -> Result<()> {
-        self.counterparty_name =
-            Some(parse_field(line, 10..47, parse_str_trim).chain_err(|| "Could not parse counterparty_name")?);
         self.counterparty_account =
+            Some(parse_field(line, 10..47, parse_str_trim).chain_err(|| "Could not parse counterparty_name")?);
+        self.counterparty_name =
             Some(parse_field(line, 47..82, parse_str_trim).chain_err(|| "Could not parse counterparty_account")?);
 
         let communication =
@@ -816,12 +816,12 @@ mod test_parse_movement {
         assert_eq!(result.is_ok(), true);
 
         assert_eq!(
-            actual.counterparty_name.unwrap(),
+            actual.counterparty_account.unwrap(),
             "068226750863",
             "counterparty_name should be '068226750863'"
         );
         assert_eq!(
-            actual.counterparty_account.unwrap(),
+            actual.counterparty_name.unwrap(),
             "T.P.F.  S.A.",
             "counterparty_account should be 'T.P.F.  S.A.'"
         );
