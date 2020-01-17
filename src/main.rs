@@ -33,14 +33,14 @@ fn run() -> Result<()> {
         .iter()
         .map(|f: &String| -> Result<Coda> {
             if options.debug {
-                println!("Parsing file: {}", f);
+                eprintln!("Parsing file: {}", f);
             }
             Coda::parse(&f, encoding_label)
         }).collect::<Vec<_>>();
 
     let mut had_errors = false;
     coda_list.iter().by_ref().filter(|c| c.is_err()).for_each(|c| {
-        println!("Error: {:?}", c);
+        eprintln!("Error: {:?}", c);
         had_errors = true
     });
 
